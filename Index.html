@@ -403,8 +403,10 @@ async function doLogin(id,pw){
   try{
     var perms={matRecView:u.matRecView,matRecAdd:u.matRecAdd,poReceived:u.poReceived};
     var data=await runServer('getBootstrapData',perms);
-    S.matRecResp=data.matRecResp||[];
-    S.poReceived=data.poReceived||[];
+    if(data){
+      S.matRecResp=data.matRecResp||[];
+      S.poReceived=data.poReceived||[];
+    }
     // Re-pull permissions
     try{var fresh=await runServer('getUserPermissions',S.user.id);if(fresh)S.user=Object.assign({},S.user,fresh);}catch(e){}
     S.syncing=false;showToast('Data loaded successfully.',false);
@@ -416,12 +418,16 @@ async function refreshData(){
   try{
     var perms={matRecView:S.user.matRecView,matRecAdd:S.user.matRecAdd,poReceived:S.user.poReceived};
     var data=await runServer('getBootstrapData',perms);
-    S.matRecResp=data.matRecResp||[];
-    S.poReceived=data.poReceived||[];
+    if(data){
+      S.matRecResp=data.matRecResp||[];
+      S.poReceived=data.poReceived||[];
+    }
     try{var fresh=await runServer('getUserPermissions',S.user.id);if(fresh)S.user=Object.assign({},S.user,fresh);}catch(e){}
     S.syncing=false;
     // Reset filters on refresh
     S.dt.filters={};S.dt.filterOpen=null;S.dt.page=1;
+    S.dtPo.filters={};S.dtPo.filterOpen=null;S.dtPo.page=1;
+    S.globalSearch='';S.globalSearchPo='';
     showToast('Data refreshed from sheet.',false);
   }catch(err){S.syncing=false;showToast('Refresh failed: '+err.message,true);}
 }
