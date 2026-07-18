@@ -10,7 +10,7 @@
  * Copy the part between /d/ and /edit and paste it below.
  * (Pre-filled from your URL — verify it matches your sheet.)
  * ========================================================================= */
-var SPREADSHEET_ID_AI = '12a2i4ZtPRu_A6KpBNKPA-B3QkEal3CQgn9LTH2Lv1A';
+var SPREADSHEET_ID_AI = '12a2i4ZtPRu_A6KpBNKPA--B3QkEal3CQgn9LTH2Lv1A';
 
 /* ---- Sheet name constants ---- */
 var SHEETS_AI = {
