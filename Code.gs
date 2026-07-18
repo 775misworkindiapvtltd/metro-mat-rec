@@ -20,7 +20,8 @@
 /* ---- Sheet name constants ---- */
 var SHEETS = {
   login:      'LOGIN PAGE',
-  matRecResp: 'MATERIAL REC RESPONSES'
+  matRecResp: 'MATERIAL REC RESPONSES',
+  poReceived: 'PO RECIEVED'
 };
 
 function doGet(e) {
@@ -75,7 +76,8 @@ function mapUser_(r) {
   return {
     name: r['NAME'] || '', id: String(r['ID'] || '').trim(), password: String(r['PASSWORD'] || '').trim(),
     matRecView: isYes_(pick_(r, ['MATERIAL RECEIVED VIEW ENTRY'])),
-    matRecAdd:  isYes_(pick_(r, ['MATERIAL ENTRY ADD']))
+    matRecAdd:  isYes_(pick_(r, ['MATERIAL ENTRY ADD'])),
+    poReceived: isYes_(pick_(r, ['PO RECEIVED', 'PO RECIEVED']))
   };
 }
 
@@ -119,6 +121,61 @@ function mapMatRec_(rows) {
   });
 }
 
+function mapPoReceived_(rows) {
+  return rows.map(function (r) {
+    return {
+      timestamp: fmtTimestamp_(r['TIMESTAMP']),
+      salesOrderNo: fmtValue_(r['SALES ORDER NO']),
+      voucherNo: fmtValue_(r['Voucher No.']),
+      dated: fmtDateOnly_(r['Dated']),
+      modeTerms: fmtValue_(r['Mode/Terms of Payment']),
+      dispatchedThrough: fmtValue_(r['Dispatched Through']),
+      buyerName: fmtValue_(r['Buyer Name']),
+      buyerNumber: fmtValue_(r['Buyer Number']),
+      termsOfDelivery: fmtValue_(r['Terms of Delivery']),
+      invoiceTo: fmtValue_(r['Invoice To']),
+      address: fmtValue_(r['ADDRESS']),
+      gstin: fmtValue_(r['GSTIN/UIN :']),
+      stateName: fmtValue_(r['State Name :']),
+      code: fmtValue_(r['Code']),
+      cin: fmtValue_(r['CIN :']),
+      email: fmtValue_(r['E-Mail :']),
+      consignee: fmtValue_(r['Consignee (Ship To)']),
+      consigneeAddress: fmtValue_(pick_(r, ['ADDRESS'])),
+      consigneeEmail: fmtValue_(r['E-Mail :']),
+      consigneeState: fmtValue_(r['State Name :']),
+      consigneeCode: fmtValue_(r['Code']),
+      consigneeGstin: fmtValue_(r['GSTIN/UIN :']),
+      supplier: fmtValue_(r['Supplier']),
+      supplierAddress: fmtValue_(pick_(r, ['ADDRESS'])),
+      contactPerson: fmtValue_(r['CONTACT PERSON']),
+      phNo: fmtValue_(r['PH NO']),
+      supplierEmail: fmtValue_(r['EMAIL']),
+      uniqueNoAdd: fmtValue_(r['UNIQUE NO ADD']),
+      description: fmtValue_(r['Description of Goods']),
+      size: fmtValue_(r['SIZE']),
+      brand: fmtValue_(r['BRAND']),
+      dueOn: fmtDateOnly_(r['Due on']),
+      quantity: fmtValue_(r['Quantity(kgs)']),
+      rate: fmtValue_(r['Rate']),
+      per: fmtValue_(r['Per']),
+      disc: fmtValue_(r['Disc. %']),
+      amount: fmtValue_(r['Amount']),
+      total: fmtValue_(r['TOTAL']),
+      gst: fmtValue_(r['GST']),
+      grandTotal: fmtValue_(r['GRAND TOTAL']),
+      status: fmtValue_(r['STATUS']),
+      extra: fmtValue_(r['EXTRA']),
+      deliveryAt: fmtValue_(r['DELIVERY AT']),
+      additionalRemark: fmtValue_(r['ADDITIONAL REMARK']),
+      testCertType: fmtValue_(r['TEST CERTIFICATE TYPE ( MULTI SELECT)']),
+      toNoOfBundle: fmtValue_(r['TO NO. OF BUNDLE']),
+      pdf: fmtValue_(r['PDF']),
+      dueDate: fmtDateOnly_(r['Due Date'])
+    };
+  });
+}
+
 function getUserPermissions(id) {
   var usersRaw = sheetToObjects_(SHEETS.login);
   var match = usersRaw.find(function (r) { return String(r['ID'] || '').trim().toLowerCase() === String(id || '').trim().toLowerCase(); });
@@ -136,9 +193,11 @@ function getLoginData() {
 function getBootstrapData(perms) {
   var loadAll = !perms;
   var needMatRec = loadAll || perms.matRecView || perms.matRecAdd;
+  var needPoRec = loadAll || perms.poReceived;
 
   var result = {
     matRecResp: needMatRec ? mapMatRec_(sheetToObjects_(SHEETS.matRecResp)) : [],
+    poReceived: needPoRec ? mapPoReceived_(sheetToObjects_(SHEETS.poReceived)) : [],
     users: sheetToObjects_(SHEETS.login).map(mapUser_),
     missingSheets: []
   };
