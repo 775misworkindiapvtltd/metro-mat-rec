@@ -312,6 +312,8 @@ var S = {
   saving:false,
   matRecEntry:null,
   entryWidths:{},
+  globalSearch:'',
+  globalSearchPo:'',
   darkMode:false, fontSize:100
 };
 
@@ -485,6 +487,12 @@ function renderDataTable(){
   var rows=S.matRecResp.slice();
   var totalUnfiltered=rows.length;
 
+  // Global search (searches across all columns)
+  if(S.globalSearch){
+    var gq=S.globalSearch.toLowerCase();
+    rows=rows.filter(function(r){return Object.values(r).some(function(v){return String(v==null?'':v).toLowerCase().includes(gq);});});
+  }
+
   // Apply text filters
   Object.entries(st.filters).forEach(function(entry){
     var k=entry[0],v=entry[1];
@@ -572,11 +580,12 @@ function renderDataTable(){
   return '<div class="dt-toolbar">'+
     '<div class="count">'+total+' of '+totalUnfiltered+' rows'+(hasActiveFilters?' (filtered)':'')+'</div>'+
     '<button class="btn btn-ghost" data-action="dt-refresh" style="padding:7px 14px;">'+(S.syncing?'\u27F3 Refreshing\u2026':'\u27F3 Refresh')+'</button>'+
-    (canAdd?'<button class="btn btn-gold" data-action="open-matrec-add" style="padding:7px 14px;">+ Add</button>':'')+
+    '<input type="text" data-action="globalsearch" placeholder="\uD83D\uDD0D Search all columns\u2026" value="'+esc(S.globalSearch||'')+'" style="padding:6px 12px;border:1.5px solid var(--line);border-radius:6px;font-size:12px;width:200px;background:var(--surface);color:var(--ink);">'+
     '<div class="dt-colmenu-wrap">'+
       '<button class="btn btn-ghost" data-action="togglecolmenu" style="padding:7px 14px;">Columns \u25BE</button>'+
       (S.colMenuOpen?'<div class="dt-colmenu"><div class="h">Show / Hide Columns</div>'+MAT_REC_COLS.map(function(c){return '<label><input type="checkbox" data-action="togglecol" data-col="'+c.key+'" '+(st.hidden.has(c.key)?'':'checked')+'> '+esc(c.label)+'</label>';}).join('')+'</div>':'')+
     '</div>'+
+    (canAdd?'<button class="btn btn-gold" data-action="open-matrec-add" style="padding:7px 14px;">+ Add</button>':'')+
   '</div>'+
   '<div class="dt-table-wrap">'+
     '<div class="dt-scroll"><table class="dt"><thead><tr>'+hdr+'</tr></thead><tbody>'+bod+'</tbody></table></div>'+
@@ -600,6 +609,12 @@ function renderPoRecTable(){
   // Only show rows where STATUS column = "ACTIVE" (case-insensitive)
   var rows=S.poReceived.filter(function(r){return String(r.status||'').trim().toUpperCase()==='ACTIVE';});
   var totalUnfiltered=rows.length;
+
+  // Global search (searches across all columns)
+  if(S.globalSearchPo){
+    var gq=S.globalSearchPo.toLowerCase();
+    rows=rows.filter(function(r){return Object.values(r).some(function(v){return String(v==null?'':v).toLowerCase().includes(gq);});});
+  }
 
   // Apply text filters
   Object.entries(st.filters).forEach(function(entry){
@@ -687,6 +702,7 @@ function renderPoRecTable(){
   return '<div class="dt-toolbar">'+
     '<div class="count">'+total+' of '+totalUnfiltered+' rows (ACTIVE only)'+(hasActiveFilters?' \u2014 filtered':'')+'</div>'+
     '<button class="btn btn-ghost" data-action="po-refresh" style="padding:7px 14px;">'+(S.syncing?'\u27F3 Refreshing\u2026':'\u27F3 Refresh')+'</button>'+
+    '<input type="text" data-action="poglobalsearch" placeholder="\uD83D\uDD0D Search all columns\u2026" value="'+esc(S.globalSearchPo||'')+'" style="padding:6px 12px;border:1.5px solid var(--line);border-radius:6px;font-size:12px;width:200px;background:var(--surface);color:var(--ink);">'+
     '<div class="dt-colmenu-wrap">'+
       '<button class="btn btn-ghost" data-action="potogglecolmenu" style="padding:7px 14px;">Columns \u25BE</button>'+
       (S.colMenuOpenPo?'<div class="dt-colmenu"><div class="h">Show / Hide Columns</div>'+PO_REC_COLS.map(function(c){return '<label><input type="checkbox" data-action="potogglecol" data-col="'+c.key+'" '+(st.hidden.has(c.key)?'':'checked')+'> '+esc(c.label)+'</label>';}).join('')+'</div>':'')+
@@ -836,6 +852,24 @@ document.addEventListener('input',function(e){
   if(el.hasAttribute('data-matfield')){
     if(S.matRecEntry){var i=parseInt(el.getAttribute('data-mati'),10);var f=el.getAttribute('data-matfield');S.matRecEntry.rows[i][f]=el.value;}return;
   }
+  if(el.getAttribute('data-action')==='globalsearch'){
+    S.globalSearch=el.value;
+    clearTimeout(filterTimer);
+    filterTimer=setTimeout(function(){S.dt.page=1;var pos=el.selectionStart;render();
+      var ag=document.querySelector('input[data-action="globalsearch"]');
+      if(ag){ag.focus();ag.setSelectionRange(pos,pos);}
+    },350);
+    return;
+  }
+  if(el.getAttribute('data-action')==='poglobalsearch'){
+    S.globalSearchPo=el.value;
+    clearTimeout(filterTimer);
+    filterTimer=setTimeout(function(){S.dtPo.page=1;var pos=el.selectionStart;render();
+      var ag=document.querySelector('input[data-action="poglobalsearch"]');
+      if(ag){ag.focus();ag.setSelectionRange(pos,pos);}
+    },350);
+    return;
+  }
   if(el.getAttribute('data-action')==='filter'){
     var c=el.getAttribute('data-col');
     S.dt.filters[c]=el.value;
@@ -877,7 +911,7 @@ document.addEventListener('click',function(e){
   if(a==='font-reset'){S.fontSize=100;document.body.style.zoom=1;try{localStorage.setItem('matrec_font_size','100');}catch(ex){}return;}
   if(a==='nav'){S.page=el.getAttribute('data-page');S.matRecEntry=null;render();return;}
   if(a==='logout'){S.user=null;S.page='login';S.sidebarOpen=true;render();return;}
-  if(a==='dt-refresh'){S.dt.filters={};S.dt.filterOpen=null;S.dt.page=1;refreshData();return;}
+  if(a==='dt-refresh'){S.dt.filters={};S.dt.filterOpen=null;S.dt.page=1;S.globalSearch='';refreshData();return;}
   if(a==='open-matrec-add'){openMatRecAdd();return;}
   if(a==='back-to-matview'){closeMatRecAdd();return;}
   if(a==='add-matrow'){if(S.matRecEntry){S.matRecEntry.rows.push(freshMatRecRow());render();}return;}
@@ -893,7 +927,7 @@ document.addEventListener('click',function(e){
   if(a==='pagenext'){S.dt.page++;render();return;}
   if(a==='pagelast'){S.dt.page=999999;render();return;}
   // PO Received table actions
-  if(a==='po-refresh'){S.dtPo.filters={};S.dtPo.filterOpen=null;S.dtPo.page=1;refreshData();return;}
+  if(a==='po-refresh'){S.dtPo.filters={};S.dtPo.filterOpen=null;S.dtPo.page=1;S.globalSearchPo='';refreshData();return;}
   if(a==='posort'){var pc=el.getAttribute('data-col');if(S.dtPo.sort===pc)S.dtPo.dir*=-1;else{S.dtPo.sort=pc;S.dtPo.dir=1;}S.dtPo.page=1;render();return;}
   if(a==='potogglefilter'){var pc2=el.getAttribute('data-col');S.dtPo.filterOpen=S.dtPo.filterOpen===pc2?null:pc2;render();if(S.dtPo.filterOpen){var pinp=document.querySelector('input[data-action="pofilter"][data-col="'+pc2+'"]');if(pinp)pinp.focus();}return;}
   if(a==='potogglecolmenu'){S.colMenuOpenPo=!S.colMenuOpenPo;render();return;}
