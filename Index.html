@@ -404,7 +404,8 @@ async function doLogin(id,pw){
     var perms={matRecView:u.matRecView,matRecAdd:u.matRecAdd,poReceived:u.poReceived};
     console.log('[DEBUG] Calling getBootstrapData with perms:', JSON.stringify(perms));
     var data=await runServer('getBootstrapDataAI',perms);
-    console.log('[DEBUG] getBootstrapData returned:', data ? ('matRecResp:'+((data.matRecResp||[]).length)+' rows, poReceived:'+((data.poReceived||[]).length)+' rows') : 'NULL');
+    console.log('[DEBUG] debugInfo:', data&&data.debugInfo?data.debugInfo.join(' | '):'none');
+    console.log('[DEBUG] missingSheets:', data&&data.missingSheets?data.missingSheets.join(' | '):'none');
     if(data){
       S.matRecResp=data.matRecResp||[];
       S.poReceived=data.poReceived||[];
@@ -415,9 +416,10 @@ async function doLogin(id,pw){
     try{var fresh=await runServer('getUserPermissionsAI',S.user.id);if(fresh)S.user=Object.assign({},S.user,fresh);}catch(e){console.log('[DEBUG] getUserPermissions error:',e.message);}
     S.syncing=false;
     var miss=(data&&data.missingSheets)||[];
-    if(S.matRecResp.length||S.poReceived.length){showToast('Data loaded: '+S.matRecResp.length+' mat rows, '+S.poReceived.length+' PO rows.',false);}
+    var dbg=(data&&data.debugInfo)||[];
+    if(S.matRecResp.length||S.poReceived.length){showToast('Loaded: '+S.matRecResp.length+' mat, '+S.poReceived.length+' PO rows.',false);}
     else if(miss.length){showToast('ERROR: '+miss.join(' | '),true);}
-    else{showToast('0 rows. Sheet naam ya permission check karo.',true);}
+    else{showToast('0 rows. '+(dbg.length?dbg.join(', '):'Sheets khali ya naam galat.'),true);}
   }catch(err){S.syncing=false;console.log('[DEBUG] getBootstrapData FAILED:',err.message);showToast('Data load error: '+err.message,true);}
 }
 

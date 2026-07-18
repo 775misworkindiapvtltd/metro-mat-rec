@@ -181,22 +181,27 @@ function getBootstrapDataAI(perms) {
     matRecResp: [],
     poReceived: [],
     users: [],
-    missingSheets: []
+    missingSheets: [],
+    debugInfo: []
   };
 
-  var loadAll = !perms;
-  // MATERIAL REC RESPONSES loads only if user has MATERIAL RECEIVED VIEW ENTRY or MATERIAL ENTRY ADD = YES
-  var needMatRec = loadAll || perms.matRecView || perms.matRecAdd;
-  // PO RECIEVED loads only if user has PO RECEIVED = YES
-  var needPoRec = loadAll || perms.poReceived;
+  // Load ALL data always (no permission gating on data fetch).
+  // Permission only controls sidebar visibility on the frontend.
+  try {
+    var matRows = sheetToObjectsAI(SHEETS_AI.matRecResp);
+    result.matRecResp = mapMatRecAI(matRows);
+    result.debugInfo.push('MATERIAL REC RESPONSES: ' + matRows.length + ' rows');
+  } catch(e) { result.missingSheets.push(SHEETS_AI.matRecResp + ' ERR: ' + e.message); }
 
-  if (needMatRec) {
-    try { result.matRecResp = mapMatRecAI(sheetToObjectsAI(SHEETS_AI.matRecResp)); } catch(e) { result.missingSheets.push(SHEETS_AI.matRecResp + ' (error: ' + e.message + ')'); }
-  }
-  if (needPoRec) {
-    try { result.poReceived = mapPoReceivedAI(sheetToObjectsAI(SHEETS_AI.poReceived)); } catch(e) { result.missingSheets.push(SHEETS_AI.poReceived + ' (error: ' + e.message + ')'); }
-  }
-  try { result.users = sheetToObjectsAI(SHEETS_AI.login).map(mapUserAI); } catch(e) { result.missingSheets.push(SHEETS_AI.login + ' (error: ' + e.message + ')'); }
+  try {
+    var poRows = sheetToObjectsAI(SHEETS_AI.poReceived);
+    result.poReceived = mapPoReceivedAI(poRows);
+    result.debugInfo.push('PO RECIEVED: ' + poRows.length + ' rows');
+  } catch(e) { result.missingSheets.push(SHEETS_AI.poReceived + ' ERR: ' + e.message); }
+
+  try {
+    result.users = sheetToObjectsAI(SHEETS_AI.login).map(mapUserAI);
+  } catch(e) { result.missingSheets.push(SHEETS_AI.login + ' ERR: ' + e.message); }
 
   return result;
 }
