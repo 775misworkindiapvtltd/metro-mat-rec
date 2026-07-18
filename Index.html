@@ -427,6 +427,8 @@ async function refreshData(){
     if(data){
       S.matRecResp=data.matRecResp||[];
       S.poReceived=data.poReceived||[];
+      var missing=data.missingSheets||[];
+      if(missing.length) console.log('[DEBUG] Missing/errored sheets:', missing.join(', '));
     }
     try{var fresh=await runServer('getUserPermissions',S.user.id);if(fresh)S.user=Object.assign({},S.user,fresh);}catch(e){}
     S.syncing=false;
@@ -434,7 +436,7 @@ async function refreshData(){
     S.dt.filters={};S.dt.filterOpen=null;S.dt.page=1;
     S.dtPo.filters={};S.dtPo.filterOpen=null;S.dtPo.page=1;
     S.globalSearch='';S.globalSearchPo='';
-    showToast('Data refreshed from sheet.',false);
+    showToast('Refreshed: '+S.matRecResp.length+' mat rows, '+S.poReceived.length+' PO rows.',false);
   }catch(err){S.syncing=false;showToast('Refresh failed: '+err.message,true);}
 }
 

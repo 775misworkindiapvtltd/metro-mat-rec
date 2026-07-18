@@ -182,21 +182,17 @@ function getLoginData() {
 }
 
 function getBootstrapData(perms) {
-  var loadAll = !perms;
-
   var result = {
-    matRecResp: mapMatRec_(sheetToObjects_(SHEETS.matRecResp)),
-    poReceived: mapPoReceived_(sheetToObjects_(SHEETS.poReceived)),
-    users: sheetToObjects_(SHEETS.login).map(mapUser_),
+    matRecResp: [],
+    poReceived: [],
+    users: [],
     missingSheets: []
   };
 
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var have = {};
-  ss.getSheets().forEach(function (s) { have[s.getName().trim().toUpperCase()] = true; });
-  Object.keys(SHEETS).forEach(function (k) {
-    if (!have[SHEETS[k].toUpperCase()]) result.missingSheets.push(SHEETS[k]);
-  });
+  // Load each sheet independently - if one fails, others still work
+  try { result.matRecResp = mapMatRec_(sheetToObjects_(SHEETS.matRecResp)); } catch(e) { result.missingSheets.push(SHEETS.matRecResp + ' (error: ' + e.message + ')'); }
+  try { result.poReceived = mapPoReceived_(sheetToObjects_(SHEETS.poReceived)); } catch(e) { result.missingSheets.push(SHEETS.poReceived + ' (error: ' + e.message + ')'); }
+  try { result.users = sheetToObjects_(SHEETS.login).map(mapUser_); } catch(e) { result.missingSheets.push(SHEETS.login + ' (error: ' + e.message + ')'); }
 
   return result;
 }
