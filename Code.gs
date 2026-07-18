@@ -24,6 +24,11 @@ var SHEETS = {
   poReceived: 'PO RECIEVED'
 };
 
+// Alternate names to try if primary name not found
+var SHEETS_ALT = {
+  poReceived: ['PO RECEIVED', 'PO RECIEVED', 'Po Recieved', 'Po Received']
+};
+
 function doGet(e) {
   return HtmlService.createHtmlOutputFromFile('Index')
     .setTitle('Material Receiving')
@@ -34,6 +39,18 @@ function doGet(e) {
 function sheetToObjects_(name) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(name);
+  // Try alternate names if not found
+  if (!sh) {
+    var allSheets = ss.getSheets().map(function(s){return s.getName();});
+    // Try case-insensitive match
+    var target = name.toUpperCase().replace(/\s+/g,'');
+    for (var i = 0; i < allSheets.length; i++) {
+      if (allSheets[i].toUpperCase().replace(/\s+/g,'') === target) {
+        sh = ss.getSheetByName(allSheets[i]);
+        break;
+      }
+    }
+  }
   if (!sh) return [];
   var data = sh.getDataRange().getValues();
   if (data.length < 2) return [];
@@ -130,56 +147,70 @@ function mapMatRec_(rows) {
 }
 
 function mapPoReceived_(rows) {
+  // Robust mapper: tries multiple possible header name variations
+  // Also reads raw keys to find the data regardless of exact spelling
   return rows.map(function (r) {
+    var keys = Object.keys(r);
+    // Helper: find value by trying multiple possible header names (case-insensitive partial match)
+    function findVal(searches) {
+      for (var i = 0; i < searches.length; i++) {
+        var s = searches[i].toUpperCase();
+        // Exact match first
+        if (r[searches[i]] !== undefined && r[searches[i]] !== '') return r[searches[i]];
+        // Case-insensitive match
+        for (var j = 0; j < keys.length; j++) {
+          if (keys[j].toUpperCase().replace(/\s+/g,' ').trim() === s) return r[keys[j]];
+        }
+        // Partial/contains match
+        for (var j = 0; j < keys.length; j++) {
+          if (keys[j].toUpperCase().replace(/\s+/g,' ').trim().indexOf(s) !== -1) return r[keys[j]];
+        }
+      }
+      return '';
+    }
     return {
-      timestamp: fmtTimestamp_(r['TIMESTAMP']),
-      salesOrderNo: fmtValue_(r['SALES ORDER NO']),
-      voucherNo: fmtValue_(r['Voucher No.']),
-      dated: fmtDateOnly_(r['Dated']),
-      modeTerms: fmtValue_(r['Mode/Terms of Payment']),
-      dispatchedThrough: fmtValue_(r['Dispatched Through']),
-      buyerName: fmtValue_(r['Buyer Name']),
-      buyerNumber: fmtValue_(r['Buyer Number']),
-      termsOfDelivery: fmtValue_(r['Terms of Delivery']),
-      invoiceTo: fmtValue_(r['Invoice To']),
-      address: fmtValue_(r['ADDRESS']),
-      gstin: fmtValue_(r['GSTIN/UIN :']),
-      stateName: fmtValue_(r['State Name :']),
-      code: fmtValue_(r['Code']),
-      cin: fmtValue_(r['CIN :']),
-      email: fmtValue_(r['E-Mail :']),
-      consignee: fmtValue_(r['Consignee (Ship To)']),
-      consigneeAddress: fmtValue_(r['ADDRESS_2'] || r['ADDRESS']),
-      consigneeEmail: fmtValue_(r['E-Mail :_2'] || r['E-Mail :']),
-      consigneeState: fmtValue_(r['State Name :_2'] || r['State Name :']),
-      consigneeCode: fmtValue_(r['Code_2'] || r['Code']),
-      consigneeGstin: fmtValue_(r['GSTIN/UIN :_2'] || r['GSTIN/UIN :']),
-      supplier: fmtValue_(r['Supplier']),
-      supplierAddress: fmtValue_(r['ADDRESS_3'] || r['ADDRESS_2'] || r['ADDRESS']),
-      contactPerson: fmtValue_(r['CONTACT PERSON']),
-      phNo: fmtValue_(r['PH NO']),
-      supplierEmail: fmtValue_(r['EMAIL']),
-      uniqueNoAdd: fmtValue_(r['UNIQUE NO ADD']),
-      description: fmtValue_(r['Description of Goods']),
-      size: fmtValue_(r['SIZE']),
-      brand: fmtValue_(r['BRAND']),
-      dueOn: fmtDateOnly_(r['Due on']),
-      quantity: fmtValue_(r['Quantity(kgs)']),
-      rate: fmtValue_(r['Rate']),
-      per: fmtValue_(r['Per']),
-      disc: fmtValue_(r['Disc. %']),
-      amount: fmtValue_(r['Amount']),
-      total: fmtValue_(r['TOTAL']),
-      gst: fmtValue_(r['GST']),
-      grandTotal: fmtValue_(r['GRAND TOTAL']),
-      status: fmtValue_(r['STATUS']),
-      extra: fmtValue_(r['EXTRA']),
-      deliveryAt: fmtValue_(r['DELIVERY AT']),
-      additionalRemark: fmtValue_(r['ADDITIONAL REMARK']),
-      testCertType: fmtValue_(r['TEST CERTIFICATE TYPE ( MULTI SELECT)'] || r['TEST CERTIFICATE TYPE (MULTI SELECT)'] || r['TEST CERTIFICATE TYPE ( MULTI SELECT)']),
-      toNoOfBundle: fmtValue_(r['TO NO. OF BUNDLE']),
-      pdf: fmtValue_(r['PDF']),
-      dueDate: fmtDateOnly_(r['Due Date'])
+      timestamp: fmtTimestamp_(findVal(['TIMESTAMP'])),
+      salesOrderNo: fmtValue_(findVal(['SALES ORDER NO', 'SALES ORDER'])),
+      voucherNo: fmtValue_(findVal(['Voucher No.', 'VOUCHER NO', 'Voucher No'])),
+      dated: fmtDateOnly_(findVal(['Dated', 'DATED'])),
+      modeTerms: fmtValue_(findVal(['Mode/Terms of Payment', 'MODE/TERMS OF PAYMENT', 'Mode/Terms'])),
+      dispatchedThrough: fmtValue_(findVal(['Dispatched Through', 'DISPATCHED THROUGH'])),
+      buyerName: fmtValue_(findVal(['Buyer Name', 'BUYER NAME'])),
+      buyerNumber: fmtValue_(findVal(['Buyer Number', 'BUYER NUMBER'])),
+      termsOfDelivery: fmtValue_(findVal(['Terms of Delivery', 'TERMS OF DELIVERY'])),
+      invoiceTo: fmtValue_(findVal(['Invoice To', 'INVOICE TO'])),
+      address: fmtValue_(findVal(['ADDRESS'])),
+      gstin: fmtValue_(findVal(['GSTIN/UIN :', 'GSTIN/UIN', 'GSTIN'])),
+      stateName: fmtValue_(findVal(['State Name :', 'State Name', 'STATE NAME'])),
+      code: fmtValue_(findVal(['Code', 'CODE'])),
+      cin: fmtValue_(findVal(['CIN :', 'CIN'])),
+      email: fmtValue_(findVal(['E-Mail :', 'E-Mail', 'EMAIL', 'E-MAIL'])),
+      consignee: fmtValue_(findVal(['Consignee (Ship To)', 'CONSIGNEE', 'Consignee'])),
+      supplier: fmtValue_(findVal(['Supplier', 'SUPPLIER'])),
+      contactPerson: fmtValue_(findVal(['CONTACT PERSON', 'Contact Person'])),
+      phNo: fmtValue_(findVal(['PH NO', 'Ph No', 'PHONE'])),
+      supplierEmail: fmtValue_(findVal(['EMAIL', 'E-Mail'])),
+      uniqueNoAdd: fmtValue_(findVal(['UNIQUE NO ADD', 'Unique No Add', 'UNIQUE NO'])),
+      description: fmtValue_(findVal(['Description of Goods', 'DESCRIPTION OF GOODS', 'Description'])),
+      size: fmtValue_(findVal(['SIZE'])),
+      brand: fmtValue_(findVal(['BRAND'])),
+      dueOn: fmtDateOnly_(findVal(['Due on', 'DUE ON', 'Due On'])),
+      quantity: fmtValue_(findVal(['Quantity(kgs)', 'QUANTITY(KGS)', 'Quantity', 'QUANTITY'])),
+      rate: fmtValue_(findVal(['Rate', 'RATE'])),
+      per: fmtValue_(findVal(['Per', 'PER'])),
+      disc: fmtValue_(findVal(['Disc. %', 'DISC. %', 'Disc.%', 'DISC'])),
+      amount: fmtValue_(findVal(['Amount', 'AMOUNT'])),
+      total: fmtValue_(findVal(['TOTAL', 'Total'])),
+      gst: fmtValue_(findVal(['GST'])),
+      grandTotal: fmtValue_(findVal(['GRAND TOTAL', 'Grand Total'])),
+      status: fmtValue_(findVal(['STATUS', 'Status'])),
+      extra: fmtValue_(findVal(['EXTRA', 'Extra'])),
+      deliveryAt: fmtValue_(findVal(['DELIVERY AT', 'Delivery At'])),
+      additionalRemark: fmtValue_(findVal(['ADDITIONAL REMARK', 'Additional Remark'])),
+      testCertType: fmtValue_(findVal(['TEST CERTIFICATE TYPE', 'Test Certificate Type'])),
+      toNoOfBundle: fmtValue_(findVal(['TO NO. OF BUNDLE', 'To No. Of Bundle', 'TO NO'])),
+      pdf: fmtValue_(findVal(['PDF'])),
+      dueDate: fmtDateOnly_(findVal(['Due Date', 'DUE DATE']))
     };
   });
 }
@@ -287,5 +318,32 @@ function saveMatRecEntries(payload) {
     return { status: 'error', message: err.message };
   } finally {
     lock.releaseLock();
+  }
+}
+
+
+
+/**
+ * DEBUG FUNCTION — Run this from Apps Script editor to see exact headers.
+ * Go to Apps Script > Run > debugPoHeaders > Check Logs (Ctrl+Enter)
+ */
+function debugPoHeaders() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('PO RECIEVED');
+  if (!sh) {
+    // Try alternate spellings
+    sh = ss.getSheetByName('PO RECEIVED');
+    if (!sh) {
+      Logger.log('ERROR: Sheet not found! Tried: PO RECIEVED, PO RECEIVED');
+      Logger.log('Available sheets: ' + ss.getSheets().map(function(s){return s.getName();}).join(', '));
+      return;
+    }
+    Logger.log('NOTE: Found sheet as "PO RECEIVED" (different spelling)');
+  }
+  var data = sh.getDataRange().getValues();
+  Logger.log('Total rows: ' + data.length);
+  Logger.log('Headers (Row 1): ' + JSON.stringify(data[0].map(function(h,i){return 'Col'+(i+1)+': ['+String(h).replace(/\s+/g,' ').trim()+']';})));
+  if (data.length > 1) {
+    Logger.log('First data row (Row 2): ' + JSON.stringify(data[1].map(function(v,i){return 'Col'+(i+1)+': ['+String(v).substring(0,30)+']';})));
   }
 }
