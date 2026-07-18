@@ -612,8 +612,8 @@ function renderDataTable(){
 /* ============================= PO RECEIVED DATA TABLE ============================= */
 function renderPoRecTable(){
   var st=S.dtPo;
-  // Only show rows where STATUS column = "ACTIVE" (case-insensitive)
-  var rows=S.poReceived.filter(function(r){return String(r.status||'').trim().toUpperCase()==='ACTIVE';});
+  // Show all rows (filter by ACTIVE status if column has value)
+  var rows=S.poReceived.slice();
   var totalUnfiltered=rows.length;
 
   // Global search (searches across all columns)
@@ -700,13 +700,13 @@ function renderPoRecTable(){
       if(c.mono) return '<td style="font-family:\'JetBrains Mono\',monospace;font-size:11.5px;">'+esc(v)+'</td>';
       return '<td>'+esc(v)+'</td>';
     }).join('')+'</tr>';
-  }).join(''):'<tr><td colspan="'+(visCols.length+1)+'"><div class="empty-state"><div class="big">No matching rows</div>Only ACTIVE status rows are shown. Adjust filters or no data available.</div></td></tr>';
+  }).join(''):'<tr><td colspan="'+(visCols.length+1)+'"><div class="empty-state"><div class="big">No matching rows</div>Adjust filters or no data available.</div></td></tr>';
 
   var rf=total===0?0:si+1;
   var rt=Math.min(si+ps,total);
 
   return '<div class="dt-toolbar">'+
-    '<div class="count">'+total+' of '+totalUnfiltered+' rows (ACTIVE only)'+(hasActiveFilters?' \u2014 filtered':'')+'</div>'+
+    '<div class="count">'+total+' of '+totalUnfiltered+' rows'+(hasActiveFilters?' \u2014 filtered':'')+'</div>'+
     '<button class="btn btn-ghost" data-action="po-refresh" style="padding:7px 14px;">'+(S.syncing?'\u27F3 Refreshing\u2026':'\u27F3 Refresh')+'</button>'+
     '<input type="text" data-action="poglobalsearch" placeholder="\uD83D\uDD0D Search all columns\u2026" value="'+esc(S.globalSearchPo||'')+'" style="padding:6px 12px;border:1.5px solid var(--line);border-radius:4px;font-size:12px;width:200px;background:var(--surface);color:var(--ink);">'+
     '<div class="dt-colmenu-wrap">'+
