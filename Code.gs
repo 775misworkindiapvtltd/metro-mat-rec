@@ -150,15 +150,55 @@ function mapMatRecAI(rows) {
 }
 
 function mapPoReceivedAI(rows) {
+  // Use CLEAN camelCase keys (no special chars like / : % ( ) which break
+  // google.script.run serialization and cause NULL return to the client).
   return rows.map(function (r) {
-    var keys = Object.keys(r);
-    var obj = {};
-    keys.forEach(function(k) { obj[k] = fmtValueAI(r[k]); });
-    if (r['TIMESTAMP'] instanceof Date) obj['TIMESTAMP'] = fmtTimestampAI(r['TIMESTAMP']);
-    if (r['Dated'] instanceof Date) obj['Dated'] = fmtDateOnlyAI(r['Dated']);
-    if (r['Due on'] instanceof Date) obj['Due on'] = fmtDateOnlyAI(r['Due on']);
-    if (r['Due Date'] instanceof Date) obj['Due Date'] = fmtDateOnlyAI(r['Due Date']);
-    return obj;
+    return {
+      timestamp: fmtTimestampAI(pickAI(r, ['TIMESTAMP'])),
+      salesOrderNo: fmtValueAI(pickAI(r, ['SALES ORDER NO', 'SALES ORDER'])),
+      voucherNo: fmtValueAI(pickAI(r, ['Voucher No.', 'VOUCHER NO'])),
+      dated: fmtDateOnlyAI(pickAI(r, ['Dated', 'DATED'])),
+      modeTerms: fmtValueAI(pickAI(r, ['Mode/Terms of Payment', 'MODE/TERMS OF PAYMENT'])),
+      dispatchedThrough: fmtValueAI(pickAI(r, ['Dispatched Through', 'DISPATCHED THROUGH'])),
+      buyerName: fmtValueAI(pickAI(r, ['Buyer Name', 'BUYER NAME'])),
+      buyerNumber: fmtValueAI(pickAI(r, ['Buyer Number', 'BUYER NUMBER'])),
+      termsOfDelivery: fmtValueAI(pickAI(r, ['Terms of Delivery', 'TERMS OF DELIVERY'])),
+      invoiceTo: fmtValueAI(pickAI(r, ['Invoice To', 'INVOICE TO'])),
+      address: fmtValueAI(pickAI(r, ['ADDRESS'])),
+      gstin: fmtValueAI(pickAI(r, ['GSTIN/UIN :', 'GSTIN/UIN'])),
+      stateName: fmtValueAI(pickAI(r, ['State Name :', 'State Name'])),
+      code: fmtValueAI(pickAI(r, ['Code'])),
+      cin: fmtValueAI(pickAI(r, ['CIN :', 'CIN'])),
+      email: fmtValueAI(pickAI(r, ['E-Mail :', 'E-Mail'])),
+      consignee: fmtValueAI(pickAI(r, ['Consignee (Ship To)', 'Consignee'])),
+      addressConsignee: fmtValueAI(pickAI(r, ['ADDRESS_2'])),
+      supplier: fmtValueAI(pickAI(r, ['Supplier'])),
+      addressSupplier: fmtValueAI(pickAI(r, ['ADDRESS_3'])),
+      contactPerson: fmtValueAI(pickAI(r, ['CONTACT PERSON'])),
+      phNo: fmtValueAI(pickAI(r, ['PH NO'])),
+      supplierEmail: fmtValueAI(pickAI(r, ['EMAIL'])),
+      uniqueNoAdd: fmtValueAI(pickAI(r, ['UNIQUE NO ADD'])),
+      description: fmtValueAI(pickAI(r, ['Description of Goods', 'DESCRIPTION OF GOODS'])),
+      size: fmtValueAI(pickAI(r, ['SIZE'])),
+      brand: fmtValueAI(pickAI(r, ['BRAND'])),
+      dueOn: fmtDateOnlyAI(pickAI(r, ['Due on', 'DUE ON'])),
+      quantity: fmtValueAI(pickAI(r, ['Quantity(kgs)', 'QUANTITY(KGS)', 'Quantity'])),
+      rate: fmtValueAI(pickAI(r, ['Rate', 'RATE'])),
+      per: fmtValueAI(pickAI(r, ['Per', 'PER'])),
+      disc: fmtValueAI(pickAI(r, ['Disc. %', 'DISC. %', 'Disc.%'])),
+      amount: fmtValueAI(pickAI(r, ['Amount', 'AMOUNT'])),
+      total: fmtValueAI(pickAI(r, ['TOTAL', 'Total'])),
+      gst: fmtValueAI(pickAI(r, ['GST'])),
+      grandTotal: fmtValueAI(pickAI(r, ['GRAND TOTAL', 'Grand Total'])),
+      status: fmtValueAI(pickAI(r, ['STATUS', 'Status'])),
+      extra: fmtValueAI(pickAI(r, ['EXTRA', 'Extra'])),
+      deliveryAt: fmtValueAI(pickAI(r, ['DELIVERY AT', 'Delivery At'])),
+      additionalRemark: fmtValueAI(pickAI(r, ['ADDITIONAL REMARK', 'Additional Remark'])),
+      testCertType: fmtValueAI(pickAI(r, ['TEST CERTIFICATE TYPE ( MULTI SELECT)', 'TEST CERTIFICATE TYPE (MULTI SELECT)', 'TEST CERTIFICATE TYPE'])),
+      toNoOfBundle: fmtValueAI(pickAI(r, ['TO NO. OF BUNDLE', 'TO NO OF BUNDLE'])),
+      pdf: fmtValueAI(pickAI(r, ['PDF'])),
+      dueDate: fmtDateOnlyAI(pickAI(r, ['Due Date', 'DUE DATE']))
+    };
   });
 }
 
