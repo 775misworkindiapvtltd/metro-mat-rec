@@ -273,6 +273,24 @@ function testPoAI() {
   return out;
 }
 
+// TEST getBootstrapDataAI exactly as frontend calls it.
+// Run this from editor - if it succeeds, web app should too.
+function testBootstrapAI() {
+  var perms = {matRecView: true, matRecAdd: true, poReceived: true};
+  var result = getBootstrapDataAI(perms);
+  Logger.log('Result type: ' + typeof result);
+  Logger.log('matRecResp rows: ' + (result.matRecResp ? result.matRecResp.length : 'NULL'));
+  Logger.log('poReceived rows: ' + (result.poReceived ? result.poReceived.length : 'NULL'));
+  Logger.log('users: ' + (result.users ? result.users.length : 'NULL'));
+  Logger.log('missingSheets: ' + JSON.stringify(result.missingSheets));
+  Logger.log('debugInfo: ' + JSON.stringify(result.debugInfo));
+  // Test JSON serialization (same as what google.script.run does)
+  var jsonStr = JSON.stringify(result);
+  Logger.log('JSON size: ' + jsonStr.length + ' bytes');
+  if (jsonStr.length > 50000) Logger.log('WARNING: Large payload - might timeout on slow connections');
+  return 'OK: ' + result.poReceived.length + ' PO rows, ' + result.matRecResp.length + ' mat rows, JSON size: ' + jsonStr.length;
+}
+
 function saveMatRecEntriesAI(payload) {
   var lock = LockService.getScriptLock();
   lock.waitLock(15000);
