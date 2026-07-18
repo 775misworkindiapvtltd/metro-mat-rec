@@ -10,7 +10,7 @@ var SHEETS_AI = {
   poReceived: 'PO RECIEVED'
 };
 
-function doGetMatRecAI(e) {
+function doGet(e) {
   return HtmlService.createHtmlOutputFromFile('Index')
     .setTitle('Material Receiving')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
