@@ -83,7 +83,14 @@ function fmtDateOnlyAI(v) {
   if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'dd-MMM-yyyy');
   return (v === undefined || v === null) ? '' : v;
 }
-function fmtValueAI(v) { return (v === undefined || v === null) ? '' : v; }
+function fmtValueAI(v) {
+  if (v === undefined || v === null) return '';
+  // Convert Date objects to string (Date objects can break google.script.run serialization -> NULL)
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'dd-MMM-yyyy');
+  // Any other object -> string (safety net for serialization)
+  if (typeof v === 'object') return String(v);
+  return v;
+}
 function isYesAI(v) { return String(v || '').trim().toUpperCase() === 'YES'; }
 
 function pickAI(r, names) {
@@ -243,7 +250,27 @@ function getBootstrapDataAI(perms) {
     result.users = sheetToObjectsAI(SHEETS_AI.login).map(mapUserAI);
   } catch(e) { result.missingSheets.push(SHEETS_AI.login + ' ERR: ' + e.message); }
 
-  return result;
+  // FINAL SAFETY NET: JSON round-trip strips any non-serializable values
+  // (Date objects, undefined, etc.) that would make google.script.run return NULL.
+  try {
+    return JSON.parse(JSON.stringify(result));
+  } catch (e) {
+    return { matRecResp: [], poReceived: [], users: [], missingSheets: ['SERIALIZE ERR: ' + e.message], debugInfo: [] };
+  }
+}
+
+// SIMPLE TEST — run from Apps Script editor to verify data reads work.
+// Returns a plain string (always serializable).
+function testPoAI() {
+  var poRows = sheetToObjectsAI(SHEETS_AI.poReceived);
+  var matRows = sheetToObjectsAI(SHEETS_AI.matRecResp);
+  var mapped = mapPoReceivedAI(poRows);
+  var out = 'PO RECIEVED raw rows: ' + poRows.length +
+            ' | MATERIAL REC RESPONSES raw rows: ' + matRows.length +
+            ' | PO mapped rows: ' + mapped.length;
+  Logger.log(out);
+  if (mapped.length) Logger.log('First PO row: ' + JSON.stringify(mapped[0]));
+  return out;
 }
 
 function saveMatRecEntriesAI(payload) {
