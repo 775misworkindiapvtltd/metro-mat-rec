@@ -402,15 +402,21 @@ async function doLogin(id,pw){
   S.syncing=true;render();
   try{
     var perms={matRecView:u.matRecView,matRecAdd:u.matRecAdd,poReceived:u.poReceived};
+    console.log('[DEBUG] Calling getBootstrapData with perms:', JSON.stringify(perms));
     var data=await runServer('getBootstrapData',perms);
+    console.log('[DEBUG] getBootstrapData returned:', data ? ('matRecResp:'+((data.matRecResp||[]).length)+' rows, poReceived:'+((data.poReceived||[]).length)+' rows') : 'NULL');
     if(data){
       S.matRecResp=data.matRecResp||[];
       S.poReceived=data.poReceived||[];
+    } else {
+      console.log('[DEBUG] data is null/undefined!');
     }
     // Re-pull permissions
-    try{var fresh=await runServer('getUserPermissions',S.user.id);if(fresh)S.user=Object.assign({},S.user,fresh);}catch(e){}
-    S.syncing=false;showToast('Data loaded successfully.',false);
-  }catch(err){S.syncing=false;showToast('Data load error: '+err.message,true);}
+    try{var fresh=await runServer('getUserPermissions',S.user.id);if(fresh)S.user=Object.assign({},S.user,fresh);}catch(e){console.log('[DEBUG] getUserPermissions error:',e.message);}
+    S.syncing=false;
+    if(S.matRecResp.length||S.poReceived.length){showToast('Data loaded: '+S.matRecResp.length+' mat rows, '+S.poReceived.length+' PO rows.',false);}
+    else{showToast('Data load hua but 0 rows mili. Sheet check karo.',true);}
+  }catch(err){S.syncing=false;console.log('[DEBUG] getBootstrapData FAILED:',err.message);showToast('Data load error: '+err.message,true);}
 }
 
 async function refreshData(){
