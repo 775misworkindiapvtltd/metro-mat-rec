@@ -147,71 +147,23 @@ function mapMatRec_(rows) {
 }
 
 function mapPoReceived_(rows) {
-  // Robust mapper: tries multiple possible header name variations
-  // Also reads raw keys to find the data regardless of exact spelling
+  // Simple pass-through: use exact header names from debug log
+  // Headers: TIMESTAMP, SALES ORDER NO, Voucher No., Dated, Mode/Terms of Payment,
+  //   Dispatched Through, Buyer Name, Buyer Number, Terms of Delivery, Invoice To,
+  //   ADDRESS, GSTIN/UIN, State Name, Code, CIN, E-Mail, Consignee (Ship To), ...
   return rows.map(function (r) {
     var keys = Object.keys(r);
-    // Helper: find value by trying multiple possible header names (case-insensitive partial match)
-    function findVal(searches) {
-      for (var i = 0; i < searches.length; i++) {
-        var s = searches[i].toUpperCase();
-        // Exact match first
-        if (r[searches[i]] !== undefined && r[searches[i]] !== '') return r[searches[i]];
-        // Case-insensitive match
-        for (var j = 0; j < keys.length; j++) {
-          if (keys[j].toUpperCase().replace(/\s+/g,' ').trim() === s) return r[keys[j]];
-        }
-        // Partial/contains match
-        for (var j = 0; j < keys.length; j++) {
-          if (keys[j].toUpperCase().replace(/\s+/g,' ').trim().indexOf(s) !== -1) return r[keys[j]];
-        }
-      }
-      return '';
-    }
-    return {
-      timestamp: fmtTimestamp_(findVal(['TIMESTAMP'])),
-      salesOrderNo: fmtValue_(findVal(['SALES ORDER NO', 'SALES ORDER'])),
-      voucherNo: fmtValue_(findVal(['Voucher No.', 'VOUCHER NO', 'Voucher No'])),
-      dated: fmtDateOnly_(findVal(['Dated', 'DATED'])),
-      modeTerms: fmtValue_(findVal(['Mode/Terms of Payment', 'MODE/TERMS OF PAYMENT', 'Mode/Terms'])),
-      dispatchedThrough: fmtValue_(findVal(['Dispatched Through', 'DISPATCHED THROUGH'])),
-      buyerName: fmtValue_(findVal(['Buyer Name', 'BUYER NAME'])),
-      buyerNumber: fmtValue_(findVal(['Buyer Number', 'BUYER NUMBER'])),
-      termsOfDelivery: fmtValue_(findVal(['Terms of Delivery', 'TERMS OF DELIVERY'])),
-      invoiceTo: fmtValue_(findVal(['Invoice To', 'INVOICE TO'])),
-      address: fmtValue_(findVal(['ADDRESS'])),
-      gstin: fmtValue_(findVal(['GSTIN/UIN :', 'GSTIN/UIN', 'GSTIN'])),
-      stateName: fmtValue_(findVal(['State Name :', 'State Name', 'STATE NAME'])),
-      code: fmtValue_(findVal(['Code', 'CODE'])),
-      cin: fmtValue_(findVal(['CIN :', 'CIN'])),
-      email: fmtValue_(findVal(['E-Mail :', 'E-Mail', 'EMAIL', 'E-MAIL'])),
-      consignee: fmtValue_(findVal(['Consignee (Ship To)', 'CONSIGNEE', 'Consignee'])),
-      supplier: fmtValue_(findVal(['Supplier', 'SUPPLIER'])),
-      contactPerson: fmtValue_(findVal(['CONTACT PERSON', 'Contact Person'])),
-      phNo: fmtValue_(findVal(['PH NO', 'Ph No', 'PHONE'])),
-      supplierEmail: fmtValue_(findVal(['EMAIL', 'E-Mail'])),
-      uniqueNoAdd: fmtValue_(findVal(['UNIQUE NO ADD', 'Unique No Add', 'UNIQUE NO'])),
-      description: fmtValue_(findVal(['Description of Goods', 'DESCRIPTION OF GOODS', 'Description'])),
-      size: fmtValue_(findVal(['SIZE'])),
-      brand: fmtValue_(findVal(['BRAND'])),
-      dueOn: fmtDateOnly_(findVal(['Due on', 'DUE ON', 'Due On'])),
-      quantity: fmtValue_(findVal(['Quantity(kgs)', 'QUANTITY(KGS)', 'Quantity', 'QUANTITY'])),
-      rate: fmtValue_(findVal(['Rate', 'RATE'])),
-      per: fmtValue_(findVal(['Per', 'PER'])),
-      disc: fmtValue_(findVal(['Disc. %', 'DISC. %', 'Disc.%', 'DISC'])),
-      amount: fmtValue_(findVal(['Amount', 'AMOUNT'])),
-      total: fmtValue_(findVal(['TOTAL', 'Total'])),
-      gst: fmtValue_(findVal(['GST'])),
-      grandTotal: fmtValue_(findVal(['GRAND TOTAL', 'Grand Total'])),
-      status: fmtValue_(findVal(['STATUS', 'Status'])),
-      extra: fmtValue_(findVal(['EXTRA', 'Extra'])),
-      deliveryAt: fmtValue_(findVal(['DELIVERY AT', 'Delivery At'])),
-      additionalRemark: fmtValue_(findVal(['ADDITIONAL REMARK', 'Additional Remark'])),
-      testCertType: fmtValue_(findVal(['TEST CERTIFICATE TYPE', 'Test Certificate Type'])),
-      toNoOfBundle: fmtValue_(findVal(['TO NO. OF BUNDLE', 'To No. Of Bundle', 'TO NO'])),
-      pdf: fmtValue_(findVal(['PDF'])),
-      dueDate: fmtDateOnly_(findVal(['Due Date', 'DUE DATE']))
-    };
+    // Build a simple object using position-based approach: just pass all key-values
+    var obj = {};
+    keys.forEach(function(k) {
+      obj[k] = fmtValue_(r[k]);
+    });
+    // Also format date fields
+    if (r['TIMESTAMP'] instanceof Date) obj['TIMESTAMP'] = fmtTimestamp_(r['TIMESTAMP']);
+    if (r['Dated'] instanceof Date) obj['Dated'] = fmtDateOnly_(r['Dated']);
+    if (r['Due on'] instanceof Date) obj['Due on'] = fmtDateOnly_(r['Due on']);
+    if (r['Due Date'] instanceof Date) obj['Due Date'] = fmtDateOnly_(r['Due Date']);
+    return obj;
   });
 }
 
