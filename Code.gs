@@ -27,12 +27,18 @@ function doGet(e) {
 }
 
 // Get the spreadsheet — works for BOTH bound and standalone scripts.
-// Uses openById (reliable in web app /exec context) with getActiveSpreadsheet fallback.
+// Tries getActiveSpreadsheet first (works if bound), then openById (works if standalone).
 function getSSAI() {
+  // 1) Try active spreadsheet (works when script is bound to the sheet)
+  try {
+    var active = SpreadsheetApp.getActiveSpreadsheet();
+    if (active) return active;
+  } catch (e) {}
+  // 2) Fall back to openById (works for standalone scripts)
   if (SPREADSHEET_ID_AI && SPREADSHEET_ID_AI.length > 20) {
-    try { return SpreadsheetApp.openById(SPREADSHEET_ID_AI); } catch (e) {}
+    return SpreadsheetApp.openById(SPREADSHEET_ID_AI); // let error surface if ID wrong
   }
-  return SpreadsheetApp.getActiveSpreadsheet();
+  throw new Error('No spreadsheet found. Paste your Sheet ID into SPREADSHEET_ID_AI at top of Code.gs');
 }
 
 function sheetToObjectsAI(name) {

@@ -414,8 +414,10 @@ async function doLogin(id,pw){
     // Re-pull permissions
     try{var fresh=await runServer('getUserPermissionsAI',S.user.id);if(fresh)S.user=Object.assign({},S.user,fresh);}catch(e){console.log('[DEBUG] getUserPermissions error:',e.message);}
     S.syncing=false;
+    var miss=(data&&data.missingSheets)||[];
     if(S.matRecResp.length||S.poReceived.length){showToast('Data loaded: '+S.matRecResp.length+' mat rows, '+S.poReceived.length+' PO rows.',false);}
-    else{showToast('Data load hua but 0 rows mili. Sheet check karo.',true);}
+    else if(miss.length){showToast('ERROR: '+miss.join(' | '),true);}
+    else{showToast('0 rows. Sheet naam ya permission check karo.',true);}
   }catch(err){S.syncing=false;console.log('[DEBUG] getBootstrapData FAILED:',err.message);showToast('Data load error: '+err.message,true);}
 }
 
