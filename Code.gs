@@ -3,6 +3,15 @@
  * ALL function names end with "AI" to avoid conflict with other code files.
  */
 
+/* =========================================================================
+ * IMPORTANT: PASTE YOUR GOOGLE SHEET ID BELOW (between the quotes)
+ * How to find it: Open your MATERIAL RECIEVING Google Sheet. Look at the URL:
+ *   docs.google.com/spreadsheets/d/THIS_LONG_ID_HERE/edit
+ * Copy the part between /d/ and /edit and paste it below.
+ * (Pre-filled from your URL — verify it matches your sheet.)
+ * ========================================================================= */
+var SPREADSHEET_ID_AI = '12a2i4ZtPRu_A6KpBNKPA-B3QkEal3CQgn9LTH2Lv1A';
+
 /* ---- Sheet name constants ---- */
 var SHEETS_AI = {
   login:      'LOGIN PAGE',
@@ -17,8 +26,18 @@ function doGet(e) {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+// Get the spreadsheet — works for BOTH bound and standalone scripts.
+// Uses openById (reliable in web app /exec context) with getActiveSpreadsheet fallback.
+function getSSAI() {
+  if (SPREADSHEET_ID_AI && SPREADSHEET_ID_AI.length > 20) {
+    try { return SpreadsheetApp.openById(SPREADSHEET_ID_AI); } catch (e) {}
+  }
+  return SpreadsheetApp.getActiveSpreadsheet();
+}
+
 function sheetToObjectsAI(name) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSSAI();
+  if (!ss) return [];
   var sh = ss.getSheetByName(name);
   if (!sh) {
     var allSheets = ss.getSheets().map(function(s){return s.getName();});
@@ -159,8 +178,18 @@ function getBootstrapDataAI(perms) {
     missingSheets: []
   };
 
-  try { result.matRecResp = mapMatRecAI(sheetToObjectsAI(SHEETS_AI.matRecResp)); } catch(e) { result.missingSheets.push(SHEETS_AI.matRecResp + ' (error: ' + e.message + ')'); }
-  try { result.poReceived = mapPoReceivedAI(sheetToObjectsAI(SHEETS_AI.poReceived)); } catch(e) { result.missingSheets.push(SHEETS_AI.poReceived + ' (error: ' + e.message + ')'); }
+  var loadAll = !perms;
+  // MATERIAL REC RESPONSES loads only if user has MATERIAL RECEIVED VIEW ENTRY or MATERIAL ENTRY ADD = YES
+  var needMatRec = loadAll || perms.matRecView || perms.matRecAdd;
+  // PO RECIEVED loads only if user has PO RECEIVED = YES
+  var needPoRec = loadAll || perms.poReceived;
+
+  if (needMatRec) {
+    try { result.matRecResp = mapMatRecAI(sheetToObjectsAI(SHEETS_AI.matRecResp)); } catch(e) { result.missingSheets.push(SHEETS_AI.matRecResp + ' (error: ' + e.message + ')'); }
+  }
+  if (needPoRec) {
+    try { result.poReceived = mapPoReceivedAI(sheetToObjectsAI(SHEETS_AI.poReceived)); } catch(e) { result.missingSheets.push(SHEETS_AI.poReceived + ' (error: ' + e.message + ')'); }
+  }
   try { result.users = sheetToObjectsAI(SHEETS_AI.login).map(mapUserAI); } catch(e) { result.missingSheets.push(SHEETS_AI.login + ' (error: ' + e.message + ')'); }
 
   return result;
@@ -175,7 +204,7 @@ function saveMatRecEntriesAI(payload) {
     var perms = getUserPermissionsAI(payload.loginId || '');
     if (!perms || !perms.matRecAdd) return { status: 'error', message: 'You do not have permission to add Material Received entries.' };
 
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var ss = getSSAI();
     var sh = ss.getSheetByName(SHEETS_AI.matRecResp);
     if (!sh) return { status: 'error', message: 'Sheet not found: ' + SHEETS_AI.matRecResp };
 
@@ -210,10 +239,13 @@ function saveMatRecEntriesAI(payload) {
 }
 
 function debugPoHeadersAI() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSSAI();
+  if (!ss) { Logger.log('ERROR: Could not open spreadsheet! Check SPREADSHEET_ID_AI at top of file.'); return; }
+  Logger.log('Spreadsheet opened: ' + ss.getName());
+  Logger.log('All tabs: ' + ss.getSheets().map(function(s){return s.getName();}).join(', '));
   var sh = ss.getSheetByName('PO RECIEVED') || ss.getSheetByName('PO RECEIVED');
-  if (!sh) { Logger.log('Sheet not found!'); return; }
+  if (!sh) { Logger.log('PO sheet not found!'); return; }
   var data = sh.getDataRange().getValues();
-  Logger.log('Total rows: ' + data.length);
+  Logger.log('PO RECIEVED total rows: ' + data.length);
   Logger.log('Headers: ' + JSON.stringify(data[0].map(function(h,i){return 'Col'+(i+1)+':['+String(h).replace(/\s+/g,' ').trim()+']';})));
 }
