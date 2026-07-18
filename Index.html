@@ -382,7 +382,7 @@ function startClock(){
 async function loadAll(){
   S.ready=false;render();
   try{
-    var loginData=await runServer('getLoginData');
+    var loginData=await runServer('getLoginDataAI');
     S.users=loginData.users||[];
     S.loadError='';
   }catch(err){ S.loadError=err.message; }
@@ -403,7 +403,7 @@ async function doLogin(id,pw){
   try{
     var perms={matRecView:u.matRecView,matRecAdd:u.matRecAdd,poReceived:u.poReceived};
     console.log('[DEBUG] Calling getBootstrapData with perms:', JSON.stringify(perms));
-    var data=await runServer('getBootstrapData',perms);
+    var data=await runServer('getBootstrapDataAI',perms);
     console.log('[DEBUG] getBootstrapData returned:', data ? ('matRecResp:'+((data.matRecResp||[]).length)+' rows, poReceived:'+((data.poReceived||[]).length)+' rows') : 'NULL');
     if(data){
       S.matRecResp=data.matRecResp||[];
@@ -412,7 +412,7 @@ async function doLogin(id,pw){
       console.log('[DEBUG] data is null/undefined!');
     }
     // Re-pull permissions
-    try{var fresh=await runServer('getUserPermissions',S.user.id);if(fresh)S.user=Object.assign({},S.user,fresh);}catch(e){console.log('[DEBUG] getUserPermissions error:',e.message);}
+    try{var fresh=await runServer('getUserPermissionsAI',S.user.id);if(fresh)S.user=Object.assign({},S.user,fresh);}catch(e){console.log('[DEBUG] getUserPermissions error:',e.message);}
     S.syncing=false;
     if(S.matRecResp.length||S.poReceived.length){showToast('Data loaded: '+S.matRecResp.length+' mat rows, '+S.poReceived.length+' PO rows.',false);}
     else{showToast('Data load hua but 0 rows mili. Sheet check karo.',true);}
@@ -423,14 +423,14 @@ async function refreshData(){
   S.syncing=true;render();
   try{
     var perms={matRecView:S.user.matRecView,matRecAdd:S.user.matRecAdd,poReceived:S.user.poReceived};
-    var data=await runServer('getBootstrapData',perms);
+    var data=await runServer('getBootstrapDataAI',perms);
     if(data){
       S.matRecResp=data.matRecResp||[];
       S.poReceived=data.poReceived||[];
       var missing=data.missingSheets||[];
       if(missing.length) console.log('[DEBUG] Missing/errored sheets:', missing.join(', '));
     }
-    try{var fresh=await runServer('getUserPermissions',S.user.id);if(fresh)S.user=Object.assign({},S.user,fresh);}catch(e){}
+    try{var fresh=await runServer('getUserPermissionsAI',S.user.id);if(fresh)S.user=Object.assign({},S.user,fresh);}catch(e){}
     S.syncing=false;
     // Reset filters on refresh
     S.dt.filters={};S.dt.filterOpen=null;S.dt.page=1;
@@ -837,7 +837,7 @@ async function submitMatRec(){
 
   S.saving=true;render();showSavingOverlay('Saving material entry\u2026');
   try{
-    var result=await runServer('saveMatRecEntries',{
+    var result=await runServer('saveMatRecEntriesAI',{
       topFields:T,rows:validRows,loginId:S.user.id,loginName:S.user.name||S.user.id
     });
     S.saving=false;hideSavingOverlay();
