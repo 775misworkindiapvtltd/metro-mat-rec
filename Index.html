@@ -165,6 +165,7 @@ table.dt thead th .resize-handle{position:absolute;right:-4px;top:0;bottom:0;wid
 table.dt thead th .resize-handle:hover,table.dt thead th .resize-handle.active{background:rgba(180,134,43,.4);}
 table.dt thead th.sno-col{background:#080C12;}
 table.dt thead th.sno-col .th-label{cursor:default;color:#8A8479;}
+table.dt thead th.filtered{background:#2A1F10 !important;}
 table.dt tbody td{padding:8px 12px;border-bottom:1px solid var(--line-light);border-right:1px solid #F2F0EA;font-size:12.5px;white-space:normal;word-break:break-word;vertical-align:middle;overflow-wrap:anywhere;}
 table.dt tbody td.sno-cell{text-align:center;color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;background:#FAFAF7;border-right:2px solid var(--line);vertical-align:middle;}
 table.dt tbody tr:nth-child(even){background:#FAFAF7;}
@@ -607,7 +608,7 @@ function renderDataTable(){
       filterHtml='<div class="th-filter"><input type="text" placeholder="Filter '+esc(c.label)+'\u2026" data-action="filter" data-col="'+c.key+'" value="'+esc(st.filters[c.key]||'')+'"></div>';
     }
 
-    return '<th style="width:'+w+'px;min-width:'+w+'px;max-width:'+w+'px;" data-col="'+c.key+'">'+
+    return '<th class="'+(hasFilter?'filtered':'')+'" style="width:'+w+'px;min-width:'+w+'px;max-width:'+w+'px;" data-col="'+c.key+'">'+
       '<div class="th-inner">'+
         '<div class="th-row">'+
           '<span class="th-label" data-action="sort" data-col="'+c.key+'">'+esc(c.label)+'</span>'+
@@ -637,6 +638,7 @@ function renderDataTable(){
   return '<div class="dt-toolbar">'+
     '<div class="count">'+total+' of '+totalUnfiltered+' rows'+(hasActiveFilters?' (filtered)':'')+'</div>'+
     '<button class="btn btn-ghost" data-action="dt-refresh" style="padding:7px 14px;">'+(S.syncing?'\u27F3 Refreshing\u2026':'\u27F3 Refresh')+'</button>'+
+    (hasActiveFilters?'<button class="btn btn-ghost" data-action="dt-reset-filters" style="padding:7px 14px;color:var(--danger);border-color:var(--danger);">\u2715 Reset Filters</button>':'')+
     '<input type="text" data-action="globalsearch" placeholder="\uD83D\uDD0D Search all columns\u2026" value="'+esc(S.globalSearch||'')+'" style="padding:6px 12px;border:1.5px solid var(--line);border-radius:4px;font-size:12px;width:200px;background:var(--surface);color:var(--ink);">'+
     '<div class="dt-colmenu-wrap">'+
       '<button class="btn btn-ghost" data-action="togglecolmenu" style="padding:7px 14px;">Columns \u25BE</button>'+
@@ -737,7 +739,7 @@ function renderPoRecTable(){
     if(isFilterOpen){
       filterHtml='<div class="th-filter"><input type="text" placeholder="Filter '+esc(c.label)+'\u2026" data-action="pofilter" data-col="'+c.key+'" value="'+esc(st.filters[c.key]||'')+'"></div>';
     }
-    return '<th style="width:'+w+'px;min-width:'+w+'px;max-width:'+w+'px;" data-col="'+c.key+'">'+
+    return '<th class="'+(hasFilter?'filtered':'')+'" style="width:'+w+'px;min-width:'+w+'px;max-width:'+w+'px;" data-col="'+c.key+'">'+
       '<div class="th-inner">'+
         '<div class="th-row">'+
           '<span class="th-label" data-action="posort" data-col="'+c.key+'">'+esc(c.label)+'</span>'+
@@ -770,6 +772,7 @@ function renderPoRecTable(){
   return '<div class="dt-toolbar">'+
     '<div class="count">'+total+' of '+totalUnfiltered+' rows'+(hasActiveFilters?' \u2014 filtered':'')+'</div>'+
     '<button class="btn btn-ghost" data-action="po-refresh" style="padding:7px 14px;">'+(S.syncing?'\u27F3 Refreshing\u2026':'\u27F3 Refresh')+'</button>'+
+    (hasActiveFilters?'<button class="btn btn-ghost" data-action="po-reset-filters" style="padding:7px 14px;color:var(--danger);border-color:var(--danger);">\u2715 Reset Filters</button>':'')+
     '<input type="text" data-action="poglobalsearch" placeholder="\uD83D\uDD0D Search all columns\u2026" value="'+esc(S.globalSearchPo||'')+'" style="padding:6px 12px;border:1.5px solid var(--line);border-radius:4px;font-size:12px;width:200px;background:var(--surface);color:var(--ink);">'+
     '<div class="dt-colmenu-wrap">'+
       '<button class="btn btn-ghost" data-action="potogglecolmenu" style="padding:7px 14px;">Columns \u25BE</button>'+
@@ -927,7 +930,7 @@ function openDateRangeAI(tableId,col){
   var existing=st.dateFilters&&st.dateFilters[col];
   var from=existing&&existing.from?new Date(existing.from+'T00:00:00'):null;
   var to=existing&&existing.to?new Date(existing.to+'T00:00:00'):null;
-  drState={tableId:tableId,col:col,from:from,to:to,month1:new Date((from||new Date()).getFullYear(),(from||new Date()).getMonth(),1),presetKey:null};
+  drState={tableId:tableId,col:col,from:from,to:to,month1:new Date((from||new Date()).getFullYear(),(from||new Date()).getMonth(),1),presetKey:null,anchorCol:col};
   renderDRAI();
 }
 function closeDRAI(){drState=null;var el=document.getElementById('drPopupAI');if(el)el.remove();}
@@ -978,7 +981,14 @@ function renderDRAI(){
   var preHtml=DR_PRESETS.map(function(p){return '<button class="'+(drState.presetKey===p.key?'active':'')+'" data-drpreset="'+p.key+'">'+p.label+'</button>';}).join('');
   var disp=(drState.from?fmtDRAI(drState.from):'--')+' \u2013 '+(drState.to?fmtDRAI(drState.to):'--');
   el.className='dr-popup';
-  el.style.cssText='position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:60;';
+  // Position near the clicked column header
+  var anchor=document.querySelector('th[data-col="'+drState.anchorCol+'"] .search-ic');
+  if(anchor){
+    var rect=anchor.getBoundingClientRect();
+    el.style.cssText='position:fixed;z-index:60;top:'+Math.min(rect.bottom+6,window.innerHeight-380)+'px;left:'+Math.max(10,Math.min(rect.left-100,window.innerWidth-580))+'px;';
+  } else {
+    el.style.cssText='position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:60;';
+  }
   el.innerHTML='<div class="dr-presets">'+preHtml+'</div>'+
     '<div class="dr-cal-area"><div class="dr-cal-months">'+
       '<div class="dr-cal-month"><div class="dr-cal-head"><button data-drnav="prev">\u2039</button><span class="month-label">'+cal1.label+'</span><span></span></div><div class="dr-cal-grid">'+cal1.cells+'</div></div>'+
@@ -1072,6 +1082,7 @@ document.addEventListener('click',function(e){
   if(a==='nav'){S.page=el.getAttribute('data-page');S.matRecEntry=null;render();return;}
   if(a==='logout'){S.user=null;S.page='login';S.sidebarOpen=true;render();return;}
   if(a==='dt-refresh'){S.dt.filters={};S.dt.dateFilters={};S.dt.filterOpen=null;S.dt.page=1;S.globalSearch='';refreshData();return;}
+  if(a==='dt-reset-filters'){S.dt.filters={};S.dt.dateFilters={};S.dt.filterOpen=null;S.dt.page=1;S.globalSearch='';render();return;}
   if(a==='open-matrec-add'){openMatRecAdd();return;}
   if(a==='back-to-matview'){closeMatRecAdd();return;}
   if(a==='add-matrow'){if(S.matRecEntry){S.matRecEntry.rows.push(freshMatRecRow());render();}return;}
@@ -1088,6 +1099,7 @@ document.addEventListener('click',function(e){
   if(a==='pagelast'){S.dt.page=999999;render();return;}
   // PO Received table actions
   if(a==='po-refresh'){S.dtPo.filters={};S.dtPo.dateFilters={};S.dtPo.filterOpen=null;S.dtPo.page=1;S.globalSearchPo='';refreshData();return;}
+  if(a==='po-reset-filters'){S.dtPo.filters={};S.dtPo.dateFilters={};S.dtPo.filterOpen=null;S.dtPo.page=1;S.globalSearchPo='';render();return;}
   if(a==='posort'){var pc=el.getAttribute('data-col');if(S.dtPo.sort===pc)S.dtPo.dir*=-1;else{S.dtPo.sort=pc;S.dtPo.dir=1;}S.dtPo.page=1;render();return;}
   if(a==='potogglefilter'){var pc2=el.getAttribute('data-col');if(isDateColumn(pc2)){openDateRangeAI('dtPo',pc2);return;}S.dtPo.filterOpen=S.dtPo.filterOpen===pc2?null:pc2;render();if(S.dtPo.filterOpen){var pinp=document.querySelector('input[data-action="pofilter"][data-col="'+pc2+'"]');if(pinp)pinp.focus();}return;}
   if(a==='potogglecolmenu'){S.colMenuOpenPo=!S.colMenuOpenPo;render();return;}
