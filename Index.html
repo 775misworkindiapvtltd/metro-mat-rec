@@ -457,7 +457,7 @@ function renderShell(inner){
           '<span>MATERIAL</span><span class="arrow">\u25B6</span>'+
         '</div>'+
         '<div class="nav-children '+(S.sidebarOpen?'show':'')+'">'+
-          (S.user.matRecView?'<div class="nav-child '+(S.page==='matRecView'?'active':'')+'" data-action="nav" data-page="matRecView">Material Received</div>':'')+
+          ((S.user.matRecView||S.user.matRecAdd)?'<div class="nav-child '+(S.page==='matRecView'||S.page==='matRecAdd'?'active':'')+'" data-action="nav" data-page="matRecView">Material Received</div>':'')+
           (S.user.poReceived?'<div class="nav-child '+(S.page==='poRecView'?'active':'')+'" data-action="nav" data-page="poRecView">PO Received</div>':'')+
         '</div>'+
       '</div></div>'+

@@ -37,7 +37,15 @@ function sheetToObjects_(name) {
   if (!sh) return [];
   var data = sh.getDataRange().getValues();
   if (data.length < 2) return [];
-  var headers = data[0].map(function (h) { return String(h).replace(/\s+/g, ' ').trim(); });
+  // Make headers unique: if duplicate, append _2, _3, etc.
+  var rawHeaders = data[0].map(function (h) { return String(h).replace(/\s+/g, ' ').trim(); });
+  var headerCount = {};
+  var headers = rawHeaders.map(function(h) {
+    if (!h) h = '_BLANK_';
+    if (!headerCount[h]) { headerCount[h] = 1; return h; }
+    headerCount[h]++;
+    return h + '_' + headerCount[h];
+  });
   return data.slice(1)
     .filter(function (row) { return row.some(function (c) { return c !== ''; }); })
     .map(function (row) {
@@ -141,13 +149,13 @@ function mapPoReceived_(rows) {
       cin: fmtValue_(r['CIN :']),
       email: fmtValue_(r['E-Mail :']),
       consignee: fmtValue_(r['Consignee (Ship To)']),
-      consigneeAddress: fmtValue_(pick_(r, ['ADDRESS'])),
-      consigneeEmail: fmtValue_(r['E-Mail :']),
-      consigneeState: fmtValue_(r['State Name :']),
-      consigneeCode: fmtValue_(r['Code']),
-      consigneeGstin: fmtValue_(r['GSTIN/UIN :']),
+      consigneeAddress: fmtValue_(r['ADDRESS_2'] || r['ADDRESS']),
+      consigneeEmail: fmtValue_(r['E-Mail :_2'] || r['E-Mail :']),
+      consigneeState: fmtValue_(r['State Name :_2'] || r['State Name :']),
+      consigneeCode: fmtValue_(r['Code_2'] || r['Code']),
+      consigneeGstin: fmtValue_(r['GSTIN/UIN :_2'] || r['GSTIN/UIN :']),
       supplier: fmtValue_(r['Supplier']),
-      supplierAddress: fmtValue_(pick_(r, ['ADDRESS'])),
+      supplierAddress: fmtValue_(r['ADDRESS_3'] || r['ADDRESS_2'] || r['ADDRESS']),
       contactPerson: fmtValue_(r['CONTACT PERSON']),
       phNo: fmtValue_(r['PH NO']),
       supplierEmail: fmtValue_(r['EMAIL']),
@@ -168,7 +176,7 @@ function mapPoReceived_(rows) {
       extra: fmtValue_(r['EXTRA']),
       deliveryAt: fmtValue_(r['DELIVERY AT']),
       additionalRemark: fmtValue_(r['ADDITIONAL REMARK']),
-      testCertType: fmtValue_(r['TEST CERTIFICATE TYPE ( MULTI SELECT)']),
+      testCertType: fmtValue_(r['TEST CERTIFICATE TYPE ( MULTI SELECT)'] || r['TEST CERTIFICATE TYPE (MULTI SELECT)'] || r['TEST CERTIFICATE TYPE ( MULTI SELECT)']),
       toNoOfBundle: fmtValue_(r['TO NO. OF BUNDLE']),
       pdf: fmtValue_(r['PDF']),
       dueDate: fmtDateOnly_(r['Due Date'])
@@ -192,12 +200,10 @@ function getLoginData() {
 
 function getBootstrapData(perms) {
   var loadAll = !perms;
-  var needMatRec = loadAll || perms.matRecView || perms.matRecAdd;
-  var needPoRec = loadAll || perms.poReceived;
 
   var result = {
-    matRecResp: needMatRec ? mapMatRec_(sheetToObjects_(SHEETS.matRecResp)) : [],
-    poReceived: needPoRec ? mapPoReceived_(sheetToObjects_(SHEETS.poReceived)) : [],
+    matRecResp: mapMatRec_(sheetToObjects_(SHEETS.matRecResp)),
+    poReceived: mapPoReceived_(sheetToObjects_(SHEETS.poReceived)),
     users: sheetToObjects_(SHEETS.login).map(mapUser_),
     missingSheets: []
   };
