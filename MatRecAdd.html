@@ -1,0 +1,126 @@
+<script>
+/* ============================= MATERIAL REC ADD FORM (Redesigned) ============================= */
+var MAT_REC_MIN_ROWS=5;
+function freshMatRecRow(){return {changeBrand:'',brand:'',salesOrderId:'',itemName:'',pendingQty:'',recQty:'',cancelQty:'',poRate:'',size:'',unit:'',invoiceRate:'',inwardBatchNo:'',grossWeight:'',remarks:'',newUniqueNo:'',outwardBatchNo:'',matRecImage:''};}
+function freshMatRecEntry(){
+  return {
+    topFields:{poNo:'',invoiceUpload:'',vendorName:'',pendingQtyTop:'',invQty:'',dueDate:'',bandel:'',addressGst:'',ewayBill:'',lrBillVerified:'',invoiceNumber:'',invoiceDate:'',ewayBillImage:'',lrImage:''},
+    rows:Array.from({length:MAT_REC_MIN_ROWS},freshMatRecRow),
+    showErrors:false
+  };
+}
+function openMatRecAdd(){S.matRecEntry=freshMatRecEntry();S.page='matRecAdd';render();}
+function closeMatRecAdd(){S.matRecEntry=null;S.page='matRecView';render();}
+
+function initMatRecDatePickers(){
+  if(typeof flatpickr==='undefined')return;
+  document.querySelectorAll('[data-matdate]').forEach(function(el){
+    var key=el.getAttribute('data-matdate');
+    flatpickr(el,{
+      dateFormat:'d-M-Y',allowInput:true,disableMobile:true,
+      defaultDate:S.matRecEntry&&S.matRecEntry.topFields[key]?S.matRecEntry.topFields[key]:null,
+      onChange:function(sel,ds){if(S.matRecEntry)S.matRecEntry.topFields[key]=ds;}
+    });
+  });
+}
+
+
+function renderMatRecAdd(){
+  var E=S.matRecEntry;if(!E)return '';
+  var T=E.topFields;
+
+  // Card 1: PURCHASE DETAILS
+  var purchaseCard='<div class="mat-card"><div class="mat-card-head"><span class="card-icon">\uD83D\uDED2</span> PURCHASE DETAILS</div><div class="mat-card-body">'+
+    '<div class="mat-top-field"><label>PO No</label><input type="text" data-mattop="poNo" value="'+esc(T.poNo)+'" placeholder="Enter PO Number" autocomplete="off"></div>'+
+    '<div class="mat-top-field"><label>Vendor Name</label><input type="text" data-mattop="vendorName" value="'+esc(T.vendorName)+'" placeholder="Vendor Name" autocomplete="off"></div>'+
+    '<div class="mat-top-field"><label>Invoice No</label><input type="text" data-mattop="invoiceNumber" value="'+esc(T.invoiceNumber)+'" placeholder="Invoice Number" autocomplete="off"></div>'+
+    '<div class="mat-top-field"><label>Invoice Date</label><input type="text" data-mattop="invoiceDate" data-matdate="invoiceDate" value="'+esc(T.invoiceDate)+'" placeholder="DD-MMM-YYYY" autocomplete="off"></div>'+
+    '<div class="mat-top-field"><label>Due Date</label><input type="text" data-mattop="dueDate" data-matdate="dueDate" value="'+esc(T.dueDate)+'" placeholder="DD-MMM-YYYY" autocomplete="off"></div>'+
+    '<div class="mat-top-field"><label>Bundle</label><input type="text" data-mattop="bandel" value="'+esc(T.bandel)+'" placeholder="Bundle count" autocomplete="off"></div>'+
+    '<div class="dropzone" data-dropzone="invoiceUpload" id="dz-invoice"><div class="dz-icon">\uD83D\uDCC4</div><div class="dz-text">Drag & drop Invoice or click</div>'+(T.invoiceUpload?'<div class="dz-file">'+esc(T.invoiceUpload)+'</div>':'')+'</div>'+
+  '</div></div>';
+
+  // Card 2: TRANSPORT & VERIFICATION
+  var transportCard='<div class="mat-card"><div class="mat-card-head"><span class="card-icon">\uD83D\uDE9A</span> TRANSPORT & VERIFICATION</div><div class="mat-card-body">'+
+    '<div class="dropzone" data-dropzone="lrImage" id="dz-lr"><div class="dz-icon">\uD83D\uDDBC\uFE0F</div><div class="dz-text">LR Image (drag & drop)</div>'+(T.lrImage?'<div class="dz-file">'+esc(T.lrImage)+'</div>':'')+'</div>'+
+    '<div class="mat-top-field"><label>LR Verified</label><select data-mattop="lrBillVerified"><option value="">-- Select --</option><option value="Yes"'+(T.lrBillVerified==='Yes'?' selected':'')+'>Yes</option><option value="No"'+(T.lrBillVerified==='No'?' selected':'')+'>No</option><option value="Pending"'+(T.lrBillVerified==='Pending'?' selected':'')+'>Pending</option></select></div>'+
+    '<div class="mat-top-field"><label>E-Way Verification</label><select data-mattop="ewayBill"><option value="">-- Select --</option><option value="Verified"'+(T.ewayBill==='Verified'?' selected':'')+'>Verified</option><option value="Not Verified"'+(T.ewayBill==='Not Verified'?' selected':'')+'>Not Verified</option><option value="Pending"'+(T.ewayBill==='Pending'?' selected':'')+'>Pending</option><option value="N/A"'+(T.ewayBill==='N/A'?' selected':'')+'>N/A</option></select></div>'+
+    '<div class="dropzone" data-dropzone="ewayBillImage" id="dz-eway"><div class="dz-icon">\uD83D\uDDBC\uFE0F</div><div class="dz-text">E-Way Image (drag & drop)</div>'+(T.ewayBillImage?'<div class="dz-file">'+esc(T.ewayBillImage)+'</div>':'')+'</div>'+
+  '</div></div>';
+
+
+  // Card 3: COMPLIANCE
+  var complianceCard='<div class="mat-card"><div class="mat-card-head"><span class="card-icon">\u2713</span> COMPLIANCE</div><div class="mat-card-body">'+
+    '<div class="mat-top-field"><label>Address & GST Verification</label><select data-mattop="addressGst"><option value="">-- Select --</option><option value="Verified"'+(T.addressGst==='Verified'?' selected':'')+'>Verified</option><option value="Not Verified"'+(T.addressGst==='Not Verified'?' selected':'')+'>Not Verified</option><option value="Pending"'+(T.addressGst==='Pending'?' selected':'')+'>Pending</option></select></div>'+
+  '</div></div>';
+
+  // Card 4: QUANTITY SUMMARY
+  var qtyCard='<div class="mat-card"><div class="mat-card-head"><span class="card-icon">\uD83D\uDCE6</span> QUANTITY SUMMARY</div><div class="mat-card-body">'+
+    '<div class="mat-top-field"><label>Invoice Quantity</label><input type="number" data-mattop="invQty" value="'+esc(T.invQty)+'" placeholder="0" step="any" inputmode="decimal" autocomplete="off"></div>'+
+    '<div class="mat-top-field"><label>Pending Quantity</label><input type="number" class="cell-ro" data-mattop="pendingQtyTop" value="'+esc(T.pendingQtyTop)+'" placeholder="Auto" readonly tabindex="-1"></div>'+
+  '</div></div>';
+
+  // Item rows table
+  var tblCols=[
+    {k:'changeBrand',label:'Change Brand',w:100},{k:'brand',label:'Brand',w:90},
+    {k:'salesOrderId',label:'Sales Order ID',w:110},{k:'itemName',label:'Item Name',w:200},
+    {k:'pendingQty',label:'Pending QTY',w:90,num:true},{k:'recQty',label:'REC QTY',w:80,num:true},
+    {k:'cancelQty',label:'Cancel QTY',w:90,num:true},{k:'poRate',label:'PO Rate',w:80,num:true},
+    {k:'size',label:'Size',w:70},{k:'unit',label:'Unit',w:60},
+    {k:'invoiceRate',label:'Invoice Rate',w:95,num:true},{k:'inwardBatchNo',label:'Inward Batch No',w:120},
+    {k:'grossWeight',label:'Gross Weight',w:100,num:true},{k:'remarks',label:'Remarks',w:150},
+    {k:'newUniqueNo',label:'New Unique No',w:120},{k:'outwardBatchNo',label:'Outward Batch No',w:120},
+    {k:'matRecImage',label:'Mat Rec Image',w:120}
+  ];
+  var hdr='<th class="blk-a" style="width:28px;min-width:28px;">#</th>'+tblCols.map(function(c){var w=S.entryWidths[c.k]||c.w;return '<th class="blk-a" style="width:'+w+'px;min-width:'+w+'px;max-width:'+w+'px;">'+esc(c.label)+'<div class="eresize" data-ecol="'+c.k+'"></div></th>';}).join('')+'<th class="blk-a" style="width:32px;min-width:32px;"></th>';
+  var tbod=E.rows.map(function(r,i){
+    return '<tr data-matrow="'+i+'"><td class="rownum">'+(i+1)+'</td>'+tblCols.map(function(c){
+      var v=r[c.k]||'';
+      var tp=c.num?'number':'text';var cls=c.num?'num':'';
+      return '<td><input class="'+cls+'" type="'+tp+'" data-matfield="'+c.k+'" data-mati="'+i+'" value="'+esc(v)+'" '+(c.num?'step="any" inputmode="decimal"':'')+' autocomplete="off"></td>';
+    }).join('')+'<td style="text-align:center;"><button class="trash-btn" data-action="del-matrow" data-i="'+i+'" title="Delete row">'+trashIcon()+'</button></td></tr>';
+  }).join('');
+
+
+  return '<div class="mat-add-container">'+
+    '<div class="mat-cards-grid">'+
+      purchaseCard+
+      transportCard+
+      complianceCard+
+      qtyCard+
+    '</div>'+
+    '<div class="entry-panel" style="flex:1;min-height:0;">'+
+      '<div class="panel-head">\uD83D\uDCCB Item Rows <span class="panel-count">'+E.rows.length+' rows</span></div>'+
+      '<div class="entry-scroll"><table class="entry" style="table-layout:fixed;"><thead><tr>'+hdr+'</tr></thead><tbody>'+tbod+'</tbody></table></div>'+
+      '<div class="panel-foot">'+
+        '<button class="btn btn-ghost" data-action="add-matrow">+ Add Row</button>'+
+        '<button class="btn btn-ghost" data-action="del-last-matrow">- Delete Row</button>'+
+        '<span style="margin-left:auto;font-size:11px;color:var(--muted);">Saving as: <b style="color:var(--ink);">'+esc(S.user.name)+'</b></span>'+
+        '<button class="btn btn-gold" data-action="submit-matrec" '+(S.saving?'disabled':'')+'>'+(S.saving?'<span class="spinner" style="width:14px;height:14px;border-width:2px;"></span> Saving\u2026':'\u2714 Save Entry')+'</button>'+
+      '</div>'+
+    '</div>'+
+  '</div>';
+}
+
+async function submitMatRec(){
+  var E=S.matRecEntry;if(!E)return;
+  var T=E.topFields;
+  var validRows=E.rows.filter(function(r){return Object.values(r).some(function(v){return v!=='';});});
+  if(!validRows.length){showToast('No item rows filled. Please fill at least one row.',true);return;}
+
+  S.saving=true;render();showSavingOverlay('Saving material entry\u2026');
+  try{
+    var result=await runServer('saveMatRecEntriesAI',{
+      topFields:T,rows:validRows,loginId:S.user.id,loginName:S.user.name||S.user.id
+    });
+    S.saving=false;hideSavingOverlay();
+    if(result.status!=='ok'){showToast('Save failed: '+(result.message||'unknown'),true);return;}
+    var ts=fmtNow();
+    validRows.forEach(function(r){
+      S.matRecResp.push(Object.assign({},T,r,{timestamp:ts,loginName:S.user.name||S.user.id}));
+    });
+    S.matRecEntry=null;S.page='matRecView';
+    showToast('Saved '+result.saved+' material received row(s).',false);
+  }catch(err){S.saving=false;hideSavingOverlay();showToast('Save failed: '+err.message,true);}
+}
+</script>

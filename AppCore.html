@@ -1,0 +1,328 @@
+<script>
+/* ============================= CONFIG ============================= */
+var PAGE_SIZE_OPTIONS = [50,100,500,1000];
+
+/* ============================= MAT_REC_COLS ============================= */
+var MAT_REC_COLS=[
+  {key:'timestamp',label:'Timestamp',width:160,mono:true},
+  {key:'poNo',label:'PO No',width:100,pill:true},
+  {key:'vendorName',label:'Vendor Name',width:180},
+  {key:'invQty',label:'INV QTY',width:80,mono:true},
+  {key:'dueDate',label:'Due Date',width:110},
+  {key:'bandel',label:'Bandel',width:80},
+  {key:'changeBrand',label:'Change Brand',width:110},
+  {key:'brand',label:'Brand',width:110},
+  {key:'salesOrderId',label:'Sales Order ID',width:120,mono:true},
+  {key:'itemName',label:'Item Name',width:220},
+  {key:'pendingQty',label:'Pending QTY',width:100,mono:true},
+  {key:'recQty',label:'REC QTY',width:90,mono:true},
+  {key:'cancelQty',label:'Cancel QTY',width:90,mono:true},
+  {key:'poRate',label:'PO Rate',width:90,mono:true},
+  {key:'size',label:'Size',width:80},
+  {key:'unit',label:'Unit',width:70},
+  {key:'invoiceRate',label:'Invoice Rate',width:100,mono:true},
+  {key:'inwardBatchNo',label:'Inward Batch No',width:130,mono:true},
+  {key:'grossWeight',label:'Gross Weight',width:110,mono:true},
+  {key:'remarks',label:'Remarks',width:180},
+  {key:'newUniqueNo',label:'New Unique No',width:130,mono:true},
+  {key:'outwardBatchNo',label:'Outward Batch No',width:130,mono:true},
+  {key:'invoiceNumber',label:'Invoice No',width:120},
+  {key:'invoiceDate',label:'Invoice Date',width:110},
+  {key:'addressGst',label:'Address & GST',width:150},
+  {key:'ewayBill',label:'Eway Bill',width:120},
+  {key:'lrBillVerified',label:'LR Bill Verified',width:120},
+  {key:'status',label:'Status',width:90},
+  {key:'loginName',label:'Login Name',width:120}
+];
+
+
+var PO_REC_COLS=[
+  {key:'timestamp',label:'Timestamp',width:150,mono:true},
+  {key:'salesOrderNo',label:'Sales Order No',width:130,mono:true},
+  {key:'voucherNo',label:'Voucher No.',width:120,mono:true},
+  {key:'dated',label:'Dated',width:100},
+  {key:'modeTerms',label:'Mode/Terms of Payment',width:160},
+  {key:'dispatchedThrough',label:'Dispatched Through',width:140},
+  {key:'buyerName',label:'Buyer Name',width:160},
+  {key:'buyerNumber',label:'Buyer Number',width:120,mono:true},
+  {key:'termsOfDelivery',label:'Terms of Delivery',width:140},
+  {key:'invoiceTo',label:'Invoice To',width:150},
+  {key:'address',label:'Address',width:200},
+  {key:'gstin',label:'GSTIN/UIN',width:150,mono:true},
+  {key:'stateName',label:'State Name',width:120},
+  {key:'code',label:'Code',width:80,mono:true},
+  {key:'cin',label:'CIN',width:150},
+  {key:'email',label:'E-Mail',width:160},
+  {key:'consignee',label:'Consignee (Ship To)',width:180},
+  {key:'addressConsignee',label:'Consignee Address',width:200},
+  {key:'supplier',label:'Supplier',width:160},
+  {key:'addressSupplier',label:'Supplier Address',width:200},
+  {key:'contactPerson',label:'Contact Person',width:140},
+  {key:'phNo',label:'PH No',width:120,mono:true},
+  {key:'supplierEmail',label:'Supplier Email',width:160},
+  {key:'uniqueNoAdd',label:'Unique No Add',width:130,mono:true},
+  {key:'description',label:'Description of Goods',width:250},
+  {key:'size',label:'Size',width:80},
+  {key:'brand',label:'Brand',width:110},
+  {key:'dueOn',label:'Due on',width:100},
+  {key:'quantity',label:'Quantity(kgs)',width:110,mono:true},
+  {key:'rate',label:'Rate',width:90,mono:true},
+  {key:'per',label:'Per',width:60},
+  {key:'disc',label:'Disc. %',width:70,mono:true},
+  {key:'amount',label:'Amount',width:110,mono:true},
+  {key:'total',label:'Total',width:110,mono:true},
+  {key:'gst',label:'GST',width:90,mono:true},
+  {key:'grandTotal',label:'Grand Total',width:120,mono:true},
+  {key:'status',label:'Status',width:90},
+  {key:'extra',label:'Extra',width:100},
+  {key:'deliveryAt',label:'Delivery At',width:130},
+  {key:'additionalRemark',label:'Additional Remark',width:180},
+  {key:'testCertType',label:'Test Certificate Type',width:180},
+  {key:'toNoOfBundle',label:'To No. of Bundle',width:120,mono:true},
+  {key:'pdf',label:'PDF',width:80,link:true},
+  {key:'dueDate',label:'Due Date',width:100}
+];
+
+
+/* ============================= STATE ============================= */
+function dtState(){return{sort:null,dir:1,hidden:new Set(),filters:{},filterOpen:null,widths:{},page:1,pageSize:50,dateFilters:{}};}
+
+var S = {
+  ready:false, loadError:'', user:null, page:'login', syncing:false, sidebarOpen:true, sidebarCollapsed:true,
+  matRecResp:[],
+  poReceived:[],
+  users:[],
+  toast:null, loginError:'',
+  dt:dtState(),
+  dtPo:dtState(),
+  colMenuOpen:false,
+  colMenuOpenPo:false,
+  saving:false,
+  matRecEntry:null,
+  entryWidths:{},
+  globalSearch:'',
+  globalSearchPo:'',
+  darkMode:false, fontSize:100
+};
+
+// Restore theme + font from localStorage
+try{ S.darkMode=localStorage.getItem('matrec_dark_mode')==='true'; if(S.darkMode)document.documentElement.classList.add('dark'); }catch(e){}
+try{ var fs=parseInt(localStorage.getItem('matrec_font_size'),10); if(fs>=70&&fs<=130){S.fontSize=fs;document.body.style.zoom=fs/100;} }catch(e){}
+
+/* ============================= APPS SCRIPT BRIDGE ============================= */
+function runServer(fnName,arg){
+  return new Promise(function(resolve,reject){
+    if(typeof google==='undefined'||!google.script||!google.script.run){
+      reject(new Error('google.script.run not available'));return;
+    }
+    var call=google.script.run.withSuccessHandler(resolve).withFailureHandler(function(err){reject(new Error(err.message||String(err)));});
+    if(arg===undefined) call[fnName](); else call[fnName](arg);
+  });
+}
+
+/* ============================= HELPERS ============================= */
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return '&#'+c.charCodeAt(0)+';';});}
+function trashIcon(){return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';}
+
+function isDateColumn(key){ return key==='timestamp'||key==='dueDate'||key==='invoiceDate'||key==='dated'||key==='dueOn'; }
+
+function formatIndianCurrency(num){
+  if(num===0)return '0';
+  var isNeg=num<0;if(isNeg)num=-num;
+  var str=Math.round(num).toString();
+  var last3=str.substring(str.length-3);
+  var rest=str.substring(0,str.length-3);
+  if(rest.length>0){
+    rest=rest.replace(/\B(?=(\d{2})+(?!\d))/g,',');
+    return (isNeg?'-':'')+rest+','+last3;
+  }
+  return (isNeg?'-':'')+last3;
+}
+
+function parseDT(v){
+  if(v==null)return null;
+  var s=String(v).trim();if(!s)return null;
+  var M={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+  var m=s.match(/^(\d{1,2})[-\/\s]([A-Za-z]{3,})[-\/\s](\d{4})(?:[\sT]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if(m){
+    var day=+m[1],mon=M[m[2].slice(0,3).toLowerCase()],yr=+m[3];
+    if(mon===undefined)return null;
+    var hh=+(m[4]||0),mm=+(m[5]||0),ss=+(m[6]||0);
+    return new Date(yr,mon,day,hh,mm,ss).getTime();
+  }
+  var t=Date.parse(s);return isNaN(t)?null:t;
+}
+
+function fmtNow(){var d=new Date();var Mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];var p=function(n){return String(n).padStart(2,'0');};return p(d.getDate())+'-'+Mo[d.getMonth()]+'-'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());}
+
+function showToast(msg,isErr){
+  S.toast={msg:msg,isErr:isErr};render();
+  setTimeout(function(){S.toast=null;var t=document.querySelector('.toast');if(t)t.remove();},3000);
+}
+
+function showSavingOverlay(msg){
+  var el=document.getElementById('savingOverlay');
+  if(!el){el=document.createElement('div');el.id='savingOverlay';document.body.appendChild(el);}
+  el.className='saving-overlay';
+  el.innerHTML='<div class="saving-box"><span class="spinner"></span>'+esc(msg||'Saving...')+'</div>';
+}
+function hideSavingOverlay(){var el=document.getElementById('savingOverlay');if(el)el.remove();}
+
+
+/* ============================= CLOCK + AUTO-REFRESH ============================= */
+var AUTO_REFRESH_MINUTES = 10;
+
+function startClock(){
+  setInterval(function(){
+    var el=document.getElementById('liveClock');if(!el)return;
+    var d=new Date();var h=d.getHours(),m=d.getMinutes(),s=d.getSeconds();
+    var ampm=h>=12?'PM':'AM';var h12=h%12||12;var pad=function(n){return String(n).padStart(2,'0');};
+    var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    el.textContent=pad(d.getDate())+'-'+months[d.getMonth()]+'-'+d.getFullYear()+' \u00b7 '+pad(h12)+':'+pad(m)+':'+pad(s)+' '+ampm;
+  },1000);
+  setInterval(function(){
+    if(S.user&&!S.syncing){ silentRefreshAI(); }
+  }, AUTO_REFRESH_MINUTES * 60 * 1000);
+}
+
+async function silentRefreshAI(){
+  try{
+    var perms={matRecView:S.user.matRecView,matRecAdd:S.user.matRecAdd,poReceived:S.user.poReceived};
+    var data=await runServer('getBootstrapDataAI',perms);
+    if(data){ S.matRecResp=data.matRecResp||[]; S.poReceived=data.poReceived||[]; }
+    render();
+  }catch(e){console.log('[AUTO-REFRESH] Failed:',e.message);}
+}
+
+/* ============================= LOGIN ============================= */
+async function loadAll(){
+  S.ready=false;render();
+  try{
+    var loginData=await runServer('getLoginDataAI');
+    S.users=loginData.users||[];
+    S.loadError='';
+  }catch(err){ S.loadError=err.message; }
+  S.ready=true;render();startClock();
+}
+
+async function doLogin(id,pw){
+  var u=S.users.find(function(x){return x.id.toLowerCase()===id.trim().toLowerCase()&&String(x.password)===pw;});
+  if(!u){S.loginError='Invalid user ID or password.';render();return;}
+  S.user=u;S.loginError='';
+  if(u.matRecView||u.matRecAdd) S.page='matRecView';
+  else if(u.poReceived) S.page='poRecView';
+  else S.page='matRecView';
+  render();
+  S.syncing=true;render();
+  try{
+    var perms={matRecView:u.matRecView,matRecAdd:u.matRecAdd,poReceived:u.poReceived};
+    var data=await runServer('getBootstrapDataAI',perms);
+    if(data){ S.matRecResp=data.matRecResp||[]; S.poReceived=data.poReceived||[]; }
+    try{var fresh=await runServer('getUserPermissionsAI',S.user.id);if(fresh)S.user=Object.assign({},S.user,fresh);}catch(e){}
+    await loadColWidthsFromServer();
+    S.syncing=false;
+    if(S.matRecResp.length||S.poReceived.length){showToast('Loaded: '+S.matRecResp.length+' mat, '+S.poReceived.length+' PO rows.',false);}
+    else{showToast('0 rows loaded.',true);}
+  }catch(err){S.syncing=false;showToast('Data load error: '+err.message,true);}
+}
+
+async function refreshData(){
+  S.syncing=true;render();
+  try{
+    var perms={matRecView:S.user.matRecView,matRecAdd:S.user.matRecAdd,poReceived:S.user.poReceived};
+    var data=await runServer('getBootstrapDataAI',perms);
+    if(data){ S.matRecResp=data.matRecResp||[]; S.poReceived=data.poReceived||[]; }
+    try{var fresh=await runServer('getUserPermissionsAI',S.user.id);if(fresh)S.user=Object.assign({},S.user,fresh);}catch(e){}
+    S.syncing=false;
+    S.dt.filters={};S.dt.filterOpen=null;S.dt.page=1;
+    S.dtPo.filters={};S.dtPo.filterOpen=null;S.dtPo.page=1;
+    S.globalSearch='';S.globalSearchPo='';
+    showToast('Refreshed: '+S.matRecResp.length+' mat rows, '+S.poReceived.length+' PO rows.',false);
+  }catch(err){S.syncing=false;showToast('Refresh failed: '+err.message,true);}
+}
+
+/* ============================= COLUMN WIDTH PERSISTENCE ============================= */
+var saveWidthTimer=null;
+function saveColWidthsToServer(page,widths){
+  clearTimeout(saveWidthTimer);
+  saveWidthTimer=setTimeout(function(){
+    runServer('saveUserSettingsAI',{page:page,widths:widths}).catch(function(e){});
+  },1000);
+}
+async function loadColWidthsFromServer(){
+  try{
+    var matW=await runServer('loadUserSettingsAI',{page:'matRecView'});
+    if(matW&&matW.widths)S.dt.widths=matW.widths;
+    var poW=await runServer('loadUserSettingsAI',{page:'poRecView'});
+    if(poW&&poW.widths)S.dtPo.widths=poW.widths;
+  }catch(e){}
+}
+
+
+/* ============================= RENDER LOGIN ============================= */
+function renderLogin(){
+  return '<div class="login-wrap"><div class="login-card">'+
+    '<div class="login-top"><div class="login-eyebrow">Material Receiving</div><h1>METRACORE</h1></div>'+
+    '<div class="login-body">'+
+    (S.loginError?'<div class="login-error">'+esc(S.loginError)+'</div>':'')+
+    '<form id="loginForm">'+
+    '<div class="field"><label>User ID</label><input type="text" id="loginId" autocomplete="username" placeholder="Enter your ID" required></div>'+
+    '<div class="field"><label>Password</label><input type="password" id="loginPw" autocomplete="current-password" placeholder="\u2022\u2022\u2022\u2022\u2022\u2022" required></div>'+
+    '<button type="submit" class="btn btn-gold btn-block">Sign In</button>'+
+    '</form></div></div></div>';
+}
+
+/* ============================= RENDER SHELL ============================= */
+function renderShell(inner){
+  var initials=(S.user.name||'U').substring(0,2).toUpperCase();
+  var matIcon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>';
+  var poIcon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>';
+  var logoutIcon='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>';
+
+  var topbarTitle='Material Received';
+  var breadcrumb='';
+  if(S.page==='poRecView') topbarTitle='PO Received';
+  else if(S.page==='matRecAdd'){
+    breadcrumb='<div class="breadcrumb"><a data-action="back-to-matview">\u2190 Back to List</a><span class="sep">/</span><span class="current">Material Received \u2014 New Entry</span></div>';
+  }
+
+  return '<div class="shell">'+
+    '<div class="sidebar">'+
+      '<div class="brand"><div class="brand-icon">MR</div></div>'+
+      '<div class="nav">'+
+        ((S.user.matRecView||S.user.matRecAdd)?'<div class="nav-icon '+(S.page==='matRecView'||S.page==='matRecAdd'?'active':'')+'" data-action="nav" data-page="matRecView">'+matIcon+'<span class="nav-tooltip">Material Received</span></div>':'')+
+        (S.user.poReceived?'<div class="nav-icon '+(S.page==='poRecView'?'active':'')+'" data-action="nav" data-page="poRecView">'+poIcon+'<span class="nav-tooltip">PO Received</span></div>':'')+
+      '</div>'+
+      '<div class="sidebar-foot"><div class="logout-btn" data-action="logout" title="Sign Out">'+logoutIcon+'</div></div>'+
+    '</div>'+
+    '<div class="main">'+
+      '<div class="topbar">'+
+        '<div class="topbar-left">'+(breadcrumb||'<h2>'+topbarTitle+'</h2>')+'</div>'+
+        '<div class="topbar-right">'+
+          '<div class="topbar-clock" id="liveClock">--:--:--</div>'+
+          '<div class="topbar-welcome">Welcome, <b>'+esc(S.user.name)+'</b></div>'+
+          '<div class="avatar">'+initials+'</div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="content">'+inner+'</div>'+
+    '</div>'+
+  '</div>'+
+  (S.toast?'<div class="toast '+(S.toast.isErr?'err':'')+'"><span>'+(S.toast.isErr?'\u26A0':'\u2713')+'</span>'+esc(S.toast.msg)+'</div>':'');
+}
+
+/* ============================= RENDER (main) ============================= */
+function render(){
+  var app=document.getElementById('app');
+  if(!S.ready){app.innerHTML='<div class="loading-screen"><div class="spinner"></div><div>Loading...</div></div>';return;}
+  if(S.loadError){app.innerHTML='<div class="login-wrap"><div class="login-card"><div class="login-top"><div class="login-eyebrow">Setup</div><h1>Load failed</h1></div><div class="login-body"><div class="login-error">'+esc(S.loadError)+'</div><button class="btn btn-gold btn-block" style="margin-top:14px;" data-action="dt-refresh">Retry</button></div></div></div>';return;}
+  if(!S.user){app.innerHTML=renderLogin();return;}
+  var inner='';
+  if(S.page==='matRecAdd'){inner=renderMatRecAdd();}
+  else if(S.page==='poRecView'){inner=renderPoRecTable();}
+  else{inner=renderDataTable();}
+  app.innerHTML=renderShell(inner);
+  if(S.page==='matRecAdd')initMatRecDatePickers();
+}
+
+loadAll();
+</script>

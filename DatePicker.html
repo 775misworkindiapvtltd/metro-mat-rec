@@ -1,0 +1,101 @@
+<script>
+/* ============================= DATE RANGE PICKER ============================= */
+var drState=null;
+var DR_PRESETS=[
+  {key:'today',label:'Today',fn:function(){var t=startOfDayAI(new Date());return[t,t];}},
+  {key:'yesterday',label:'Yesterday',fn:function(){var d=new Date();d.setDate(d.getDate()-1);return[startOfDayAI(d),startOfDayAI(d)];}},
+  {key:'thisWeek',label:'This Week',fn:function(){var d=new Date();var s=new Date(d);s.setDate(d.getDate()-d.getDay());return[startOfDayAI(s),startOfDayAI(d)];}},
+  {key:'lastWeek',label:'Last Week',fn:function(){var d=new Date();var e2=new Date(d);e2.setDate(d.getDate()-d.getDay()-1);var s=new Date(e2);s.setDate(e2.getDate()-6);return[startOfDayAI(s),startOfDayAI(e2)];}},
+  {key:'last7',label:'Last 7 Days',fn:function(){var d=new Date();var s=new Date(d);s.setDate(d.getDate()-6);return[startOfDayAI(s),startOfDayAI(d)];}},
+  {key:'last30',label:'Last 30 Days',fn:function(){var d=new Date();var s=new Date(d);s.setDate(d.getDate()-29);return[startOfDayAI(s),startOfDayAI(d)];}},
+  {key:'thisMonth',label:'This Month',fn:function(){var d=new Date();return[startOfDayAI(new Date(d.getFullYear(),d.getMonth(),1)),startOfDayAI(d)];}},
+  {key:'lastMonth',label:'Last Month',fn:function(){var d=new Date();var e2=new Date(d.getFullYear(),d.getMonth(),0);var s=new Date(e2.getFullYear(),e2.getMonth(),1);return[startOfDayAI(s),startOfDayAI(e2)];}},
+  {key:'past',label:'All Past',fn:function(){return[startOfDayAI(new Date(2020,0,1)),startOfDayAI(new Date())];}}
+];
+function startOfDayAI(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate());}
+function fmtDRAI(d){if(!d)return'';var p=function(n){return String(n).padStart(2,'0');};var M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return p(d.getDate())+'-'+M[d.getMonth()]+'-'+d.getFullYear();}
+function fmtISOAI(d){if(!d)return'';return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+
+
+function openDateRangeAI(tableId,col){
+  var st=(tableId==='dtPo')?S.dtPo:S.dt;
+  var existing=st.dateFilters&&st.dateFilters[col];
+  var from=existing&&existing.from?new Date(existing.from+'T00:00:00'):null;
+  var to=existing&&existing.to?new Date(existing.to+'T00:00:00'):null;
+  drState={tableId:tableId,col:col,from:from,to:to,month1:new Date((from||new Date()).getFullYear(),(from||new Date()).getMonth(),1),presetKey:null,anchorCol:col};
+  renderDRAI();
+}
+function closeDRAI(){drState=null;var el=document.getElementById('drPopupAI');if(el)el.remove();}
+function applyDRAI(){
+  if(!drState)return;
+  var st=(drState.tableId==='dtPo')?S.dtPo:S.dt;
+  if(!st.dateFilters)st.dateFilters={};
+  if(drState.from||drState.to){st.dateFilters[drState.col]={from:fmtISOAI(drState.from),to:fmtISOAI(drState.to)};}
+  else{delete st.dateFilters[drState.col];}
+  st.page=1;closeDRAI();render();
+}
+function drSelectDayAI(d){
+  if(!drState)return;
+  if(!drState.from||drState.to){drState.from=d;drState.to=null;drState.presetKey=null;}
+  else{if(d<drState.from){drState.to=drState.from;drState.from=d;}else drState.to=d;drState.presetKey=null;}
+  renderDRAI();
+}
+function drPresetAI(key){var p=DR_PRESETS.find(function(x){return x.key===key;});if(!p||!drState)return;var r=p.fn();drState.from=r[0];drState.to=r[1];drState.presetKey=key;drState.month1=new Date(r[0].getFullYear(),r[0].getMonth(),1);renderDRAI();}
+
+function buildCalAI(year,month){
+  var M=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var first=new Date(year,month,1);var startDow=first.getDay();
+  var dim=new Date(year,month+1,0).getDate();var prevDays=new Date(year,month,0).getDate();
+  var today=startOfDayAI(new Date());var cells='';
+  ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(function(d){cells+='<div class="day-label">'+d+'</div>';});
+  for(var i=0;i<startDow;i++){cells+='<div class="day other">'+(prevDays-startDow+1+i)+'</div>';}
+  for(var d=1;d<=dim;d++){
+    var dt=new Date(year,month,d);var cls='day';
+    if(dt.getTime()===today.getTime())cls+=' today';
+    if(drState){
+      if(drState.from&&dt.getTime()===drState.from.getTime())cls+=' range-start';
+      if(drState.to&&dt.getTime()===drState.to.getTime())cls+=' range-end';
+      if(drState.from&&drState.to&&dt>drState.from&&dt<drState.to)cls+=' in-range';
+      if(drState.from&&!drState.to&&dt.getTime()===drState.from.getTime())cls+=' range-start range-end';
+    }
+    cells+='<div class="'+cls+'" data-drday="'+fmtISOAI(dt)+'">'+d+'</div>';
+  }
+  var rem=(7-(startDow+dim)%7)%7;for(var i=1;i<=rem;i++){cells+='<div class="day other">'+i+'</div>';}
+  return{label:M[month]+' '+year,cells:cells};
+}
+
+
+function renderDRAI(){
+  var el=document.getElementById('drPopupAI');
+  if(!el){el=document.createElement('div');el.id='drPopupAI';document.body.appendChild(el);}
+  if(!drState){el.remove();return;}
+  var m1y=drState.month1.getFullYear(),m1m=drState.month1.getMonth();
+  var m2=new Date(m1y,m1m+1,1);
+  var cal1=buildCalAI(m1y,m1m),cal2=buildCalAI(m2.getFullYear(),m2.getMonth());
+  var preHtml=DR_PRESETS.map(function(p){return '<button class="'+(drState.presetKey===p.key?'active':'')+'" data-drpreset="'+p.key+'">'+p.label+'</button>';}).join('');
+  var disp=(drState.from?fmtDRAI(drState.from):'--')+' \u2013 '+(drState.to?fmtDRAI(drState.to):'--');
+  el.className='dr-popup';
+  var anchor=document.querySelector('th[data-col="'+drState.anchorCol+'"] .search-ic');
+  if(anchor){
+    var rect=anchor.getBoundingClientRect();
+    el.style.cssText='position:fixed;z-index:60;top:'+Math.min(rect.bottom+6,window.innerHeight-380)+'px;left:'+Math.max(10,Math.min(rect.left-100,window.innerWidth-580))+'px;';
+  } else {
+    el.style.cssText='position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:60;';
+  }
+  el.innerHTML='<div class="dr-presets">'+preHtml+'</div>'+
+    '<div class="dr-cal-area"><div class="dr-cal-months">'+
+      '<div class="dr-cal-month"><div class="dr-cal-head"><button data-drnav="prev">\u2039</button><span class="month-label">'+cal1.label+'</span><span></span></div><div class="dr-cal-grid">'+cal1.cells+'</div></div>'+
+      '<div class="dr-cal-month"><div class="dr-cal-head"><span></span><span class="month-label">'+cal2.label+'</span><button data-drnav="next">\u203A</button></div><div class="dr-cal-grid">'+cal2.cells+'</div></div>'+
+    '</div><div class="dr-foot"><span class="dr-display">'+disp+'</span><div class="dr-btns"><button class="btn btn-ghost" data-draction="cancel" style="padding:6px 14px;font-size:11px;">Cancel</button><button class="btn btn-gold" data-draction="apply" style="padding:6px 14px;font-size:11px;">Apply</button></div></div></div>';
+}
+
+// DR popup clicks
+document.addEventListener('click',function(e){
+  if(!drState)return;var popup=document.getElementById('drPopupAI');if(!popup)return;
+  if(!popup.contains(e.target)&&!e.target.closest('.search-ic')){closeDRAI();return;}
+  var preset=e.target.closest('[data-drpreset]');if(preset){drPresetAI(preset.getAttribute('data-drpreset'));return;}
+  var day=e.target.closest('[data-drday]');if(day){drSelectDayAI(new Date(day.getAttribute('data-drday')+'T00:00:00'));return;}
+  var nav=e.target.closest('[data-drnav]');if(nav){if(nav.getAttribute('data-drnav')==='prev')drState.month1.setMonth(drState.month1.getMonth()-1);else drState.month1.setMonth(drState.month1.getMonth()+1);renderDRAI();return;}
+  var act=e.target.closest('[data-draction]');if(act){if(act.getAttribute('data-draction')==='apply')applyDRAI();else closeDRAI();return;}
+});
+</script>

@@ -1,0 +1,99 @@
+<script>
+/* ============================= RENDER DATA TABLE (Mat Rec View) ============================= */
+function renderDataTable(){
+  var st=S.dt;
+  var rows=S.matRecResp.slice();
+  var totalUnfiltered=rows.length;
+
+  if(S.globalSearch){
+    var gq=S.globalSearch.toLowerCase();
+    rows=rows.filter(function(r){return Object.values(r).some(function(v){return String(v==null?'':v).toLowerCase().includes(gq);});});
+  }
+  Object.entries(st.filters).forEach(function(entry){
+    var k=entry[0],v=entry[1];if(!v)return;
+    rows=rows.filter(function(r){return String(r[k]==null?'':r[k]).toLowerCase().includes(v.toLowerCase());});
+  });
+  Object.entries(st.dateFilters||{}).forEach(function(entry){
+    var k=entry[0],df=entry[1];if(!df)return;
+    var from=df.from?parseDT(df.from):null;
+    var to=df.to?parseDT(df.to+' 23:59:59'):null;
+    if(!from&&!to)return;
+    rows=rows.filter(function(r){var d=parseDT(r[k]);if(d===null)return false;if(from&&d<from)return false;if(to&&d>to)return false;return true;});
+  });
+
+
+  if(st.sort){
+    var sortKey=st.sort;var sortDir=st.dir;var isDate=isDateColumn(sortKey);
+    rows.sort(function(a,b){
+      var x=a[sortKey],y=b[sortKey];
+      if(isDate){var dx=parseDT(x),dy=parseDT(y);var ex=(dx===null),ey=(dy===null);if(ex&&ey)return 0;if(ex)return 1;if(ey)return -1;return (dx-dy)*sortDir;}
+      var nx=parseFloat(x),ny=parseFloat(y);
+      if(!isNaN(nx)&&!isNaN(ny)&&String(nx)===String(x).trim()&&String(ny)===String(y).trim()){return (nx-ny)*sortDir;}
+      var sx=String(x==null?'':x).toLowerCase(),sy=String(y==null?'':y).toLowerCase();
+      if(!sx&&!sy)return 0;if(!sx)return 1;if(!sy)return -1;
+      if(sx<sy)return -1*sortDir;if(sx>sy)return 1*sortDir;return 0;
+    });
+  }
+
+  var total=rows.length;var ps=st.pageSize;
+  var tp=Math.max(1,Math.ceil(total/ps));
+  if(st.page>tp)st.page=tp;if(st.page<1)st.page=1;
+  var si=(st.page-1)*ps;var pageRows=rows.slice(si,si+ps);
+  var visCols=MAT_REC_COLS.filter(function(c){return !st.hidden.has(c.key);});
+  var hasActiveFilters=Object.values(st.filters).some(function(v){return !!v;})||Object.keys(st.dateFilters||{}).length>0||!!S.globalSearch;
+
+  var snoW=60;
+  var snoTh='<th class="sno-col" style="width:'+snoW+'px;min-width:'+snoW+'px;max-width:'+snoW+'px;"><div class="th-inner"><div class="th-row"><span class="th-label no-sort">S.No</span></div></div></th>';
+
+  var hdr=snoTh+visCols.map(function(c){
+    var w=st.widths[c.key]||c.width||150;
+    var sortIcon=st.sort===c.key?(st.dir===1?'\u25B2':'\u25BC'):'';
+    var isFilterOpen=st.filterOpen===c.key;
+    var hasFilter=!!st.filters[c.key]||(st.dateFilters&&!!st.dateFilters[c.key]);
+    var isDate=isDateColumn(c.key);var searchIcon=isDate?'\uD83D\uDCC5':'\u2315';
+    var filterHtml='';
+    if(isFilterOpen){filterHtml='<div class="th-filter"><input type="text" placeholder="Filter '+esc(c.label)+'\u2026" data-action="filter" data-col="'+c.key+'" value="'+esc(st.filters[c.key]||'')+'"></div>';}
+    return '<th class="'+(hasFilter?'filtered':'')+'" style="width:'+w+'px;min-width:'+w+'px;max-width:'+w+'px;" data-col="'+c.key+'"><div class="th-inner"><div class="th-row"><span class="th-label" data-action="sort" data-col="'+c.key+'">'+esc(c.label)+'</span><span class="sort-ic">'+sortIcon+'</span><span class="search-ic'+(hasFilter?' active':'')+'" data-action="togglesearch" data-col="'+c.key+'">'+searchIcon+'</span></div>'+filterHtml+'<div class="resize-handle" data-action="resize" data-col="'+c.key+'"></div></div></th>';
+  }).join('');
+
+
+  var bod=pageRows.length?pageRows.map(function(r,idx){
+    var sno=si+idx+1;
+    return '<tr><td class="sno-cell">'+sno+'</td>'+visCols.map(function(c){
+      var v=r[c.key]==null?'':r[c.key];
+      if(c.pill&&v) return '<td><span class="code-pill">'+esc(v)+'</span></td>';
+      if(c.mono) return '<td style="font-family:\'JetBrains Mono\',monospace;font-size:11.5px;">'+esc(v)+'</td>';
+      return '<td>'+esc(v)+'</td>';
+    }).join('')+'</tr>';
+  }).join(''):'<tr><td colspan="'+(visCols.length+1)+'"><div class="empty-state"><div class="big">No matching rows</div>Adjust filters or no data available yet.</div></td></tr>';
+
+  var rf=total===0?0:si+1;var rt=Math.min(si+ps,total);
+  var canAdd=S.user&&S.user.matRecAdd;
+
+  return '<div class="dt-toolbar">'+
+    '<div class="count">'+total+' of '+totalUnfiltered+' rows'+(hasActiveFilters?' (filtered)':'')+'</div>'+
+    '<button class="btn btn-ghost" data-action="dt-refresh" style="padding:7px 14px;">'+(S.syncing?'\u27F3 Refreshing\u2026':'\u27F3 Refresh')+'</button>'+
+    '<button class="btn btn-ghost" data-action="dt-reset-filters" style="padding:7px 14px;'+(hasActiveFilters?'color:var(--danger);border-color:var(--danger);':'opacity:0.4;cursor:default;')+'">\u2715 Reset Filters</button>'+
+    '<input type="text" data-action="globalsearch" placeholder="\uD83D\uDD0D Search all columns\u2026" value="'+esc(S.globalSearch||'')+'" style="padding:6px 12px;border:1.5px solid var(--line);border-radius:4px;font-size:12px;width:200px;background:var(--surface);color:var(--ink);">'+
+    '<div class="dt-colmenu-wrap">'+
+      '<button class="btn btn-ghost" data-action="togglecolmenu" style="padding:7px 14px;">Columns \u25BE</button>'+
+      (S.colMenuOpen?'<div class="dt-colmenu"><div class="h">Show / Hide Columns</div>'+MAT_REC_COLS.map(function(c){return '<label><input type="checkbox" data-action="togglecol" data-col="'+c.key+'" '+(st.hidden.has(c.key)?'':'checked')+'> '+esc(c.label)+'</label>';}).join('')+'</div>':'')+
+    '</div>'+
+    (canAdd?'<button class="btn btn-gold" data-action="open-matrec-add" style="padding:7px 14px;">+ Add</button>':'')+
+  '</div>'+
+  '<div class="dt-table-wrap">'+
+    '<div class="dt-scroll"><table class="dt"><thead><tr>'+hdr+'</tr></thead><tbody>'+bod+'</tbody></table></div>'+
+    '<div class="dt-pagination">'+
+      '<div class="pp">Rows per page: <select data-action="pagesize">'+PAGE_SIZE_OPTIONS.map(function(n){return '<option value="'+n+'" '+(st.pageSize===n?'selected':'')+'>'+n+'</option>';}).join('')+'</select></div>'+
+      '<div class="range-info">'+(total===0?'0 rows':rf+'\u2013'+rt+' of '+total)+'</div>'+
+      '<div class="nav">'+
+        '<button data-action="pagefirst" '+(st.page<=1?'disabled':'')+'>&#171; First</button>'+
+        '<button data-action="pageprev" '+(st.page<=1?'disabled':'')+'>&#8249; Prev</button>'+
+        '<span class="pageinfo">'+st.page+' / '+tp+'</span>'+
+        '<button data-action="pagenext" '+(st.page>=tp?'disabled':'')+'>Next &#8250;</button>'+
+        '<button data-action="pagelast" '+(st.page>=tp?'disabled':'')+'>Last &#187;</button>'+
+      '</div>'+
+    '</div>'+
+  '</div>';
+}
+</script>
