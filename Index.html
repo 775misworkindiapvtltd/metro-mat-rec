@@ -714,8 +714,6 @@ loadAll();
 function renderDataTable(){
   var st=S.dt;
   var rows=S.matRecResp.slice();
-  // Filter out CANCEL status rows
-  rows=rows.filter(function(r){var st2=String(r.status||'').trim().toUpperCase();return st2!=='CANCEL';});
   var totalUnfiltered=rows.length;
 
   if(S.globalSearch){

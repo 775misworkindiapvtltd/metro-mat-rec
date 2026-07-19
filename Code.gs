@@ -281,8 +281,13 @@ function getBootstrapDataAI(perms) {
   if (needMat) {
     try {
       var matRows = sheetToObjectsAI(SHEETS_AI.matRecResp);
-      result.matRecResp = mapMatRecAI(matRows);
-      result.debugInfo.push('MAT: ' + matRows.length);
+      // Only send ACTIVE rows to client (filter at source)
+      var activeRows = matRows.filter(function(r) {
+        var status = String(pickAI(r, ['STATUS', 'Status']) || '').trim().toUpperCase();
+        return status === 'ACTIVE' || status === '';
+      });
+      result.matRecResp = mapMatRecAI(activeRows);
+      result.debugInfo.push('MAT: ' + activeRows.length + '/' + matRows.length);
     } catch(e) { result.missingSheets.push(SHEETS_AI.matRecResp + ' ERR: ' + e.message); }
   }
 
