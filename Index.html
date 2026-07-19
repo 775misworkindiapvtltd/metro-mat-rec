@@ -931,7 +931,6 @@ function onPoSelected(poNo){
     return rpo===poLow;
   });
   if(!matchingRows.length)return;
-  var nextBatch=getNextOutwardBatchNo();
   E.rows=matchingRows.map(function(r,idx){
     var itemName=String(r.description||'').trim();
     var alreadyRec=getAlreadyReceived(poNo,vendor,itemName);
@@ -954,7 +953,7 @@ function onPoSelected(poNo){
       grossWeight:'',
       remarks:'',
       newUniqueNo:String(r.uniqueNoAdd||'').trim(),
-      outwardBatchNo:String(nextBatch+idx),
+      outwardBatchNo:'',
       matRecImage:[],
       poQuantity:poQty,
       alreadyReceived:alreadyRec
@@ -1069,7 +1068,7 @@ function renderMatRecAdd(){
           return '<td><textarea data-matfield="'+c.k+'" data-mati="'+i+'" placeholder="'+esc(c.label)+'" autocomplete="off" style="'+errStyle+'resize:vertical;min-height:32px;max-height:120px;">'+esc(v)+'</textarea></td>';
         }
         if(c.ro){
-          return '<td><input class="cell-ro'+(c.num?' num':'')+'" type="'+(c.num?'number':'text')+'" data-matfield="'+c.k+'" data-mati="'+i+'" value="'+esc(v)+'" readonly tabindex="-1" '+(c.num?'step="any"':'')+' autocomplete="off"></td>';
+          return '<td><input class="cell-ro'+(c.num?' num':'')+'" type="'+(c.num?'number':'text')+'" data-matfield="'+c.k+'" data-mati="'+i+'" value="'+esc(v)+'" title="'+esc(v)+'" readonly tabindex="-1" '+(c.num?'step="any"':'')+' autocomplete="off"></td>';
         }
         var tp=c.num?'number':'text';var cls=c.num?'num':'';
         return '<td><input class="'+cls+'" type="'+tp+'" data-matfield="'+c.k+'" data-mati="'+i+'" value="'+esc(v)+'" '+(c.num?'step="any" inputmode="decimal"':'')+' autocomplete="off" style="'+errStyle+'"></td>';
@@ -1124,6 +1123,22 @@ async function submitMatRec(){
 
   S.saving=true;render();showSavingOverlay('Saving material entry\u2026');
   try{
+    // Re-fetch fresh data to get latest outward batch (concurrency safety)
+    try{
+      var freshData=await runServer('getBootstrapDataAI',{matRecView:true,matRecAdd:true,poReceived:false});
+      if(freshData&&freshData.matRecResp) S.matRecResp=freshData.matRecResp;
+    }catch(e){}
+    // Re-assign outward batch numbers with latest data
+    var freshBatch=getNextOutwardBatchNo();
+    var bIdx=0;
+    validRows.forEach(function(r){
+      if(parseFloat(r.recQty)>0){
+        r.outwardBatchNo=String(freshBatch+bIdx);
+        bIdx++;
+      } else {
+        r.outwardBatchNo='';
+      }
+    });
     var result=await runServer('saveMatRecEntriesAI',{
       topFields:T,rows:validRows,loginId:S.user.id,loginName:S.user.name||S.user.id
     });
@@ -1410,26 +1425,28 @@ document.addEventListener('blur',function(e){
   var el=e.target;
   if(!el.hasAttribute('data-ddtype'))return;
   var dtype=el.getAttribute('data-ddtype');
-  // Delay to allow click on dropdown item first
+  // Delay to allow click on dropdown item first (350ms)
   setTimeout(function(){
     if(!S.matRecEntry)return;
-    var val=(el.value||'').trim();
-    if(!val)return;
+    var val=(dtype==='vendor'?S.matRecEntry.topFields.vendorName:S.matRecEntry.topFields.poNo)||'';
+    val=val.trim();
+    if(!val){hideDDList(dtype);return;}
     var items=[];
     if(dtype==='vendor') items=getUniqueVendors();
     else if(dtype==='po') items=getPOsForVendor(S.matRecEntry.topFields.vendorName);
     var match=items.find(function(it){return it.toLowerCase()===val.toLowerCase();});
     if(!match){
       // Value not in list — clear it
-      if(dtype==='vendor'){S.matRecEntry.topFields.vendorName='';el.value='';}
-      else if(dtype==='po'){S.matRecEntry.topFields.poNo='';el.value='';}
+      if(dtype==='vendor'){S.matRecEntry.topFields.vendorName='';}
+      else if(dtype==='po'){S.matRecEntry.topFields.poNo='';}
+      render();
     } else {
       // Normalize to exact match from list
-      if(dtype==='vendor') S.matRecEntry.topFields.vendorName=match;
-      else if(dtype==='po') S.matRecEntry.topFields.poNo=match;
-      el.value=match;
+      if(dtype==='vendor'&&S.matRecEntry.topFields.vendorName!==match){S.matRecEntry.topFields.vendorName=match;}
+      else if(dtype==='po'&&S.matRecEntry.topFields.poNo!==match){S.matRecEntry.topFields.poNo=match;}
     }
-  },250);
+    hideDDList(dtype);
+  },350);
 },true);
 
 document.addEventListener('input',function(e){
@@ -1454,15 +1471,17 @@ document.addEventListener('input',function(e){
       S.matRecEntry.rows[i][f]=el.value;
       if(f==='recQty'||f==='cancelQty'){
         recalcPendingQty(i);
-        // Update outward batch no: assign if recQty > 0
+        // Outward Batch No: assign only when recQty > 0, else blank
         var nextBatch=getNextOutwardBatchNo();
         var batchIdx=0;
         S.matRecEntry.rows.forEach(function(r,ri){
-          if(parseFloat(r.recQty)>0||parseFloat(r.cancelQty)>0){
-            if(!r.outwardBatchNo||r.outwardBatchNo==='0'){
+          if(parseFloat(r.recQty)>0){
+            if(!r.outwardBatchNo){
               r.outwardBatchNo=String(nextBatch+batchIdx);
             }
             batchIdx++;
+          } else {
+            r.outwardBatchNo='';
           }
         });
         // Update pendingQtyTop display
@@ -1471,6 +1490,9 @@ document.addEventListener('input',function(e){
         // Update this row pending display
         var pEl=document.querySelector('input[data-matfield="pendingQty"][data-mati="'+i+'"]');
         if(pEl)pEl.value=S.matRecEntry.rows[i].pendingQty;
+        // Update outward batch display
+        var obEl=document.querySelector('input[data-matfield="outwardBatchNo"][data-mati="'+i+'"]');
+        if(obEl)obEl.value=S.matRecEntry.rows[i].outwardBatchNo;
       }
     }
     return;
