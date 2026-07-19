@@ -405,7 +405,6 @@ var S = {
 };
 
 try{ S.darkMode=localStorage.getItem('matrec_dark_mode')==='true'; if(S.darkMode)document.documentElement.classList.add('dark'); }catch(e){}
-try{ var fs=parseInt(localStorage.getItem('matrec_font_size'),10); if(fs>=70&&fs<=130){S.fontSize=fs;document.body.style.zoom=fs/100;} }catch(e){}
 
 /* ============================= APPS SCRIPT BRIDGE ============================= */
 function runServer(fnName,arg){
@@ -624,7 +623,7 @@ function renderShell(inner){
       '<div class="topbar">'+
         '<div class="topbar-left">'+(breadcrumb||'<h2>'+topbarTitle+'</h2>')+'</div>'+
         '<div class="topbar-right">'+
-          '<div class="topbar-controls"><button data-action="font-down" title="Decrease font">A\u2212</button><button data-action="font-reset" title="Reset font">A</button><button data-action="font-up" title="Increase font">A+</button><div class="divider"></div><button data-action="toggle-theme" title="Toggle dark/light">'+(S.darkMode?'\u2600':'\uD83C\uDF19')+'</button></div>'+
+          '<div class="topbar-controls"><button data-action="toggle-theme" title="Toggle dark/light">'+(S.darkMode?'\u2600':'\uD83C\uDF19')+'</button></div>'+
           '<div class="topbar-clock" id="liveClock">--:--:--</div>'+
           '<div class="topbar-welcome">Welcome, <b>'+esc(S.user.name)+'</b></div>'+
           '<div class="avatar">'+initials+'</div>'+
@@ -1608,9 +1607,9 @@ document.addEventListener('click',function(e){
     S.darkMode=!S.darkMode;document.documentElement.classList.toggle('dark',S.darkMode);
     try{localStorage.setItem('matrec_dark_mode',S.darkMode?'true':'false');}catch(ex){}render();return;
   }
-  if(a==='font-up'){S.fontSize=Math.min(130,S.fontSize+10);document.body.style.zoom=(S.fontSize/100);try{localStorage.setItem('matrec_font_size',String(S.fontSize));}catch(ex){}return;}
-  if(a==='font-down'){S.fontSize=Math.max(70,S.fontSize-10);document.body.style.zoom=(S.fontSize/100);try{localStorage.setItem('matrec_font_size',String(S.fontSize));}catch(ex){}return;}
-  if(a==='font-reset'){S.fontSize=100;document.body.style.zoom=1;try{localStorage.setItem('matrec_font_size','100');}catch(ex){}return;}
+  if(a==='font-up'){return;}
+  if(a==='font-down'){return;}
+  if(a==='font-reset'){return;}
   if(a==='nav'){S.page=el.getAttribute('data-page');S.matRecEntry=null;render();return;}
   if(a==='logout'){S.user=null;S.page='login';render();return;}
   if(a==='dt-refresh'){S.dt.filters={};S.dt.dateFilters={};S.dt.filterOpen=null;S.dt.page=1;S.globalSearch='';refreshData();return;}
