@@ -1069,7 +1069,9 @@ function renderMatRecAdd(){
       '<div class="entry-scroll"><table class="entry" style="table-layout:fixed;"><thead><tr>'+hdr+'</tr></thead><tbody>'+tbod+'</tbody></table></div>'+
       '<div class="panel-foot">'+
         '<span style="font-size:11px;color:var(--muted);">Saving as: <b style="color:var(--ink);">'+esc(S.user.name)+'</b></span>'+
-        '<button class="btn btn-gold" data-action="submit-matrec" style="margin-left:auto;" '+(S.saving?'disabled':'')+'>'+(S.saving?'<span class="spinner" style="width:14px;height:14px;border-width:2px;"></span> Saving\u2026':'\u2714 Save Entry')+'</button>'+
+        '<button class="btn btn-ghost" data-action="pdf-punched" style="margin-left:auto;padding:7px 14px;font-size:11px;">\uD83D\uDCC4 PDF (Punched)</button>'+
+        '<button class="btn btn-ghost" data-action="pdf-pending" style="padding:7px 14px;font-size:11px;">\uD83D\uDCC4 PDF (Pending)</button>'+
+        '<button class="btn btn-gold" data-action="submit-matrec" '+(S.saving?'disabled':'')+'>'+(S.saving?'<span class="spinner" style="width:14px;height:14px;border-width:2px;"></span> Saving\u2026':'\u2714 Save Entry')+'</button>'+
       '</div>'+
     '</div>';
   } else {
@@ -1122,6 +1124,72 @@ async function submitMatRec(){
     S.matRecEntry=null;S.page='matRecView';
     showToast('Saved '+result.saved+' material received row(s).',false);
   }catch(err){S.saving=false;hideSavingOverlay();showToast('Save failed: '+err.message,true);}
+}
+
+
+/* ============================= PDF GENERATION ============================= */
+function generatePdfPunched(){
+  var E=S.matRecEntry;if(!E)return;
+  var T=E.topFields;
+  var rows=E.rows.filter(function(r){var rec=parseFloat(r.recQty)||0;var canc=parseFloat(r.cancelQty)||0;return rec>0||canc>0;});
+  if(!rows.length){showToast('No rows with REC/Cancel QTY to generate PDF.',true);return;}
+  openPdfPopup('Material Received - Punched Entry',T,rows,'punched');
+}
+
+function generatePdfPending(){
+  var E=S.matRecEntry;if(!E)return;
+  var T=E.topFields;
+  var rows=E.rows.filter(function(r){var pq=parseFloat(r.pendingQty)||0;return pq>0;});
+  if(!rows.length){showToast('No rows with Pending QTY to generate PDF.',true);return;}
+  openPdfPopup('Material Received - Pending Quantity',T,rows,'pending');
+}
+
+function openPdfPopup(title,topFields,rows,type){
+  var T=topFields;
+  var isPunched=(type==='punched');
+
+  var cols=isPunched?
+    [{k:'brand',l:'Brand'},{k:'salesOrderId',l:'Sales Order ID'},{k:'itemName',l:'Item Name'},{k:'recQty',l:'REC QTY'},{k:'cancelQty',l:'Cancel QTY'},{k:'poRate',l:'PO Rate'},{k:'size',l:'Size'},{k:'unit',l:'Unit'},{k:'invoiceRate',l:'Invoice Rate'},{k:'inwardBatchNo',l:'Inward Batch No'},{k:'grossWeight',l:'Gross Wt'},{k:'remarks',l:'Remarks'},{k:'outwardBatchNo',l:'Outward Batch'}]:
+    [{k:'brand',l:'Brand'},{k:'salesOrderId',l:'Sales Order ID'},{k:'itemName',l:'Item Name'},{k:'pendingQty',l:'Pending QTY'},{k:'poRate',l:'PO Rate'},{k:'size',l:'Size'},{k:'unit',l:'Unit'},{k:'newUniqueNo',l:'New Unique No'}];
+
+  var tblHead='<tr>'+cols.map(function(c){return '<th style="border:1px solid #ddd;padding:6px 8px;background:#1a2130;color:#fff;font-size:10px;text-transform:uppercase;">'+c.l+'</th>';}).join('')+'</tr>';
+  var tblBody=rows.map(function(r,i){
+    return '<tr style="'+(i%2===0?'':'background:#f9f9f6;')+'">'+cols.map(function(c){return '<td style="border:1px solid #ddd;padding:5px 8px;font-size:11px;">'+esc(r[c.k]||'')+'</td>';}).join('')+'</tr>';
+  }).join('');
+
+  var html='<!DOCTYPE html><html><head><title>'+esc(title)+'</title>'+
+    '<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;padding:20px;color:#333;}'+
+    '.header{text-align:center;margin-bottom:20px;border-bottom:2px solid #b4862b;padding-bottom:12px;}'+
+    '.header h1{font-size:16px;color:#1a1712;margin-bottom:4px;}.header h2{font-size:12px;color:#666;font-weight:normal;}'+
+    '.info-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;font-size:11px;}'+
+    '.info-item{}.info-item label{font-weight:700;color:#666;font-size:9px;text-transform:uppercase;display:block;margin-bottom:2px;}'+
+    '.info-item span{color:#1a1712;font-weight:500;}'+
+    'table{width:100%;border-collapse:collapse;margin-top:10px;}'+
+    '.footer{margin-top:20px;text-align:right;font-size:10px;color:#888;}'+
+    '.print-btn{position:fixed;top:10px;right:10px;padding:8px 16px;background:#b4862b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600;font-size:12px;}'+
+    '.print-btn:hover{background:#8c6720;}'+
+    '@media print{.print-btn{display:none !important;}}'+
+    '</style></head><body>'+
+    '<button class="print-btn" onclick="window.print()">Print / Download PDF</button>'+
+    '<div class="header"><h1>'+esc(title)+'</h1><h2>Generated: '+fmtNow()+'</h2></div>'+
+    '<div class="info-grid">'+
+      '<div class="info-item"><label>Vendor</label><span>'+esc(T.vendorName)+'</span></div>'+
+      '<div class="info-item"><label>PO Number</label><span>'+esc(T.poNo)+'</span></div>'+
+      '<div class="info-item"><label>Invoice No</label><span>'+esc(T.invoiceNumber)+'</span></div>'+
+      '<div class="info-item"><label>Invoice Date</label><span>'+esc(T.invoiceDate)+'</span></div>'+
+      '<div class="info-item"><label>Due Date</label><span>'+esc(T.dueDate)+'</span></div>'+
+      '<div class="info-item"><label>Bundle</label><span>'+esc(T.bandel)+'</span></div>'+
+      '<div class="info-item"><label>Invoice QTY</label><span>'+esc(T.invQty)+'</span></div>'+
+      '<div class="info-item"><label>Pending QTY Total</label><span>'+esc(T.pendingQtyTop)+'</span></div>'+
+      '<div class="info-item"><label>Login</label><span>'+esc(S.user?S.user.name:'')+'</span></div>'+
+    '</div>'+
+    '<table>'+tblHead+tblBody+'</table>'+
+    '<div class="footer">Rows: '+rows.length+' | '+esc(title)+'</div>'+
+    '</body></html>';
+
+  var win=window.open('','_blank','width=900,height=700');
+  if(win){win.document.write(html);win.document.close();}
+  else{showToast('Popup blocked! Allow popups for this site.',true);}
 }
 
 
@@ -1489,6 +1557,8 @@ document.addEventListener('click',function(e){
   if(a==='del-last-matrow'){if(S.matRecEntry&&S.matRecEntry.rows.length>1){S.matRecEntry.rows.pop();render();}return;}
   if(a==='del-matrow'){if(S.matRecEntry){var idx=parseInt(el.getAttribute('data-i'),10);S.matRecEntry.rows.splice(idx,1);if(!S.matRecEntry.rows.length)S.matRecEntry.rows.push(freshMatRecRow());render();}return;}
   if(a==='submit-matrec'){submitMatRec();return;}
+  if(a==='pdf-punched'){generatePdfPunched();return;}
+  if(a==='pdf-pending'){generatePdfPending();return;}
   if(a==='sort'){var c=el.getAttribute('data-col');var st=S.dt;if(st.sort===c)st.dir*=-1;else{st.sort=c;st.dir=1;}st.page=1;render();return;}
   if(a==='togglesearch'){var c2=el.getAttribute('data-col');if(isDateColumn(c2)){openDateRangeAI('dt',c2);return;}S.dt.filterOpen=S.dt.filterOpen===c2?null:c2;render();if(S.dt.filterOpen){var inp2=document.querySelector('input[data-action="filter"][data-col="'+c2+'"]');if(inp2)inp2.focus();}return;}
   if(a==='togglecolmenu'){S.colMenuOpen=!S.colMenuOpen;render();return;}
