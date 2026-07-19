@@ -1519,14 +1519,12 @@ document.addEventListener('input',function(e){
       S.matRecEntry.rows[i][f]=el.value;
       if(f==='recQty'||f==='cancelQty'){
         recalcPendingQty(i);
-        // Outward Batch No: assign only when recQty > 0, else blank
+        // Re-assign ALL outward batch numbers (always fresh, incremental)
         var nextBatch=getNextOutwardBatchNo();
         var batchIdx=0;
         S.matRecEntry.rows.forEach(function(r,ri){
           if(parseFloat(r.recQty)>0){
-            if(!r.outwardBatchNo){
-              r.outwardBatchNo=String(nextBatch+batchIdx);
-            }
+            r.outwardBatchNo=String(nextBatch+batchIdx);
             batchIdx++;
           } else {
             r.outwardBatchNo='';
@@ -1538,9 +1536,11 @@ document.addEventListener('input',function(e){
         // Update this row pending display
         var pEl=document.querySelector('input[data-matfield="pendingQty"][data-mati="'+i+'"]');
         if(pEl)pEl.value=S.matRecEntry.rows[i].pendingQty;
-        // Update outward batch display
-        var obEl=document.querySelector('input[data-matfield="outwardBatchNo"][data-mati="'+i+'"]');
-        if(obEl)obEl.value=S.matRecEntry.rows[i].outwardBatchNo;
+        // Update ALL outward batch displays
+        S.matRecEntry.rows.forEach(function(r,ri){
+          var obEl=document.querySelector('input[data-matfield="outwardBatchNo"][data-mati="'+ri+'"]');
+          if(obEl)obEl.value=r.outwardBatchNo;
+        });
       }
     }
     return;
