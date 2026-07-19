@@ -421,7 +421,7 @@ function saveMatRecEntriesAI(payload) {
     var dataRows = rows.map(function (r) {
       // Assign outward batch number server-side
       var outBatch = '';
-      if (String(r.outwardBatchNo||'').indexOf('__AUTO__') === 0 || parseFloat(r.recQty) > 0) {
+      if (parseFloat(r.recQty) > 0) {
         outBatch = String(outwardBase + obIdx);
         obIdx++;
       }
