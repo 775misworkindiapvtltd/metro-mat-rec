@@ -1176,17 +1176,11 @@ async function submitMatRec(){
 
   S.saving=true;render();showSavingOverlay('Saving material entry\u2026');
   try{
-    // Re-fetch fresh data to get latest outward batch (concurrency safety)
-    try{
-      var freshData=await runServer('getBootstrapDataAI',{matRecView:true,matRecAdd:true,poReceived:false});
-      if(freshData&&freshData.matRecResp) S.matRecResp=freshData.matRecResp;
-    }catch(e){}
-    // Re-assign outward batch numbers with latest data
-    var freshBatch=getNextOutwardBatchNo();
+    // Outward batch assigned server-side for speed (no pre-fetch needed)
     var bIdx=0;
     validRows.forEach(function(r){
       if(parseFloat(r.recQty)>0){
-        r.outwardBatchNo=String(freshBatch+bIdx);
+        r.outwardBatchNo='__AUTO__'+bIdx; // Server will replace with actual number
         bIdx++;
       } else {
         r.outwardBatchNo='';

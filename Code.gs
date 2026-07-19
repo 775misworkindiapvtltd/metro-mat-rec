@@ -402,7 +402,29 @@ function saveMatRecEntriesAI(payload) {
       }
     } catch(e) { /* fallback to 00001 */ }
 
+    // Calculate outward batch numbers server-side (for speed)
+    var outwardBase = 1;
+    try {
+      var lastRow2 = sh.getLastRow();
+      if (lastRow2 > 1) {
+        var obCol = 30; // AD = outward batch no
+        var obData = sh.getRange(2, obCol, lastRow2 - 1, 1).getValues();
+        obData.forEach(function(row) {
+          var val = String(row[0] || '');
+          var m2 = val.match(/(\d+)$/);
+          if (m2) { var n2 = parseInt(m2[1], 10); if (n2 >= outwardBase) outwardBase = n2 + 1; }
+        });
+      }
+    } catch(e2) {}
+    var obIdx = 0;
+
     var dataRows = rows.map(function (r) {
+      // Assign outward batch number server-side
+      var outBatch = '';
+      if (String(r.outwardBatchNo||'').indexOf('__AUTO__') === 0 || parseFloat(r.recQty) > 0) {
+        outBatch = String(outwardBase + obIdx);
+        obIdx++;
+      }
       // matRecImage: convert array of {url} to comma-separated plain URLs
       var imgUrls = '';
       if (Array.isArray(r.matRecImage)) {
@@ -427,7 +449,7 @@ function saveMatRecEntriesAI(payload) {
         r.changeBrand||'', r.brand||'', r.salesOrderId||'', r.itemName||'',
         r.pendingQty||'', r.recQty||'', r.cancelQty||'', r.poRate||'',
         r.size||'', r.unit||'', r.invoiceRate||'', r.inwardBatchNo||'',
-        r.grossWeight||'', r.remarks||'', r.newUniqueNo||'', r.outwardBatchNo||'',
+        r.grossWeight||'', r.remarks||'', r.newUniqueNo||'', outBatch,
         imgUrls,
         '',          // Col 32 (AF) = REC QTY PDF LINK
         '',          // Col 33 (AG) = PEND QTY PDF LINK
