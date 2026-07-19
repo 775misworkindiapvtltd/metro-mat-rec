@@ -714,6 +714,8 @@ loadAll();
 function renderDataTable(){
   var st=S.dt;
   var rows=S.matRecResp.slice();
+  // Filter out CANCEL status rows
+  rows=rows.filter(function(r){var st2=String(r.status||'').trim().toUpperCase();return st2!=='CANCEL';});
   var totalUnfiltered=rows.length;
 
   if(S.globalSearch){
@@ -775,9 +777,15 @@ function renderDataTable(){
     var sno=si+idx+1;
     return '<tr><td class="sno-cell">'+sno+'</td>'+visCols.map(function(c){
       var v=r[c.key]==null?'':String(r[c.key]);
-      // Multiple HTTP URLs (comma separated) → multiple "Click Here" links
-      if(v&&v.indexOf('http')>=0){
-        var urls=v.split(',').filter(function(u){return u.trim().indexOf('http')===0;});
+      // Detect URLs (http/https) → show as "Click Here" links
+      if(v&&(v.indexOf('http://')>=0||v.indexOf('https://')>=0)){
+        // Split URLs: handle comma-separated AND space-separated
+        var urls=v.split(/[,\s]+/).filter(function(u){var t=u.trim();return t.indexOf('http://')===0||t.indexOf('https://')===0;});
+        if(!urls.length){
+          // Try splitting on 'https://' for concatenated URLs
+          var parts=v.split('https://').filter(function(p){return p.trim();}).map(function(p){return 'https://'+p.trim();});
+          urls=parts.filter(function(u){return u.indexOf('https://')===0;});
+        }
         if(urls.length){return '<td>'+urls.map(function(u){return '<a class="click-link" href="'+esc(u.trim())+'" target="_blank">Click Here</a>';}).join(' ')+'</td>';}
       }
       if(c.pill&&v) return '<td><span class="code-pill">'+esc(v)+'</span></td>';
