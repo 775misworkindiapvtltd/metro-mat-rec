@@ -160,7 +160,7 @@ function mapMatRecAI(rows) {
       outwardBatchNo: fmtValueAI(r['OUTWARD BATCH NO']),
       matRecImage: fmtValueAI(r['MATRIAL REC IMAGE MULTIPLE IMAGE']),
       status: fmtValueAI(r['STATUS']),
-      matRecNo: fmtValueAI(pickAI(r, ['MAT REC NO', 'MAT-REC NO', 'MAT-REC-NO', 'MATRECNO'])),
+      matRecNo: fmtValueAI(pickAI(r, ['MAT REC NO', 'MAT-REC NO', 'MAT-REC-NO', 'MATRECNO', 'MAT REC UNIQUE', 'MAT REC UNIQUE NO', 'MAT REC UNI'])),
       loginName: fmtValueAI(r['LOGIN NAME'] || r['LOGIN ID'] || '')
     };
   });
