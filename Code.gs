@@ -113,7 +113,10 @@ function mapUserAI(r) {
     id: String(pickAI(r, ['ID', 'Id', 'id', 'USER ID', 'User ID', 'LOGIN ID']) || '').trim(),
     password: String(pickAI(r, ['PASSWORD', 'Password', 'password', 'PASS', 'Pass']) || '').trim(),
     matRecView: isYesAI(pickAI(r, ['MATERIAL RECEIVED VIEW ENTRY', 'MATERIAL RECEIVED VIEW', 'MATERRIAL RECEIVED VIEW ENTRY', 'MAT REC VIEW'])),
-    matRecAdd:  isYesAI(pickAI(r, ['MATERIAL ENTRY ADD', 'MATERIAL ADD'])),
+    matRecAdd: (function(){
+      var val = String(pickAI(r, ['MATERIAL ENTRY ADD', 'MATERIAL ADD']) || '').trim().toUpperCase();
+      return val === 'YES' || val === 'YES & EDIT' || val === 'YES AND EDIT';
+    })(),
     matRecEdit: (function(){
       var val = String(pickAI(r, ['MATERIAL ENTRY ADD', 'MATERIAL ADD']) || '').trim().toUpperCase();
       return val === 'YES & EDIT' || val === 'YES AND EDIT';

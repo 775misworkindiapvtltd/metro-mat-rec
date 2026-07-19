@@ -533,7 +533,7 @@ function startClock(){
 
 async function silentRefreshAI(){
   try{
-    var perms={matRecView:S.user.matRecView,matRecAdd:S.user.matRecAdd,poReceived:S.user.poReceived};
+    var perms={matRecView:S.user.matRecView,matRecAdd:S.user.matRecAdd,matRecEdit:S.user.matRecEdit,poReceived:S.user.poReceived};
     var data=await runServer('getBootstrapDataAI',perms);
     if(data){ S.matRecResp=data.matRecResp||[]; S.poReceived=data.poReceived||[]; }
     render();
@@ -572,7 +572,7 @@ async function doLogin(id,pw){
     else S.page='matRecView';
     render();
     S.syncing=true;render();
-    var perms={matRecView:S.user.matRecView,matRecAdd:S.user.matRecAdd,poReceived:S.user.poReceived};
+    var perms={matRecView:S.user.matRecView,matRecAdd:S.user.matRecAdd,matRecEdit:S.user.matRecEdit,poReceived:S.user.poReceived};
     var data=await runServer('getBootstrapDataAI',perms);
     if(data){ S.matRecResp=data.matRecResp||[]; S.poReceived=data.poReceived||[]; }
     try{ var dd=await runServer('getDropdownDataAI'); if(dd&&dd.brands) S.dropdownBrands=dd.brands; }catch(e){}
@@ -586,7 +586,7 @@ async function doLogin(id,pw){
 async function refreshData(){
   S.syncing=true;render();
   try{
-    var perms={matRecView:S.user.matRecView,matRecAdd:S.user.matRecAdd,poReceived:S.user.poReceived};
+    var perms={matRecView:S.user.matRecView,matRecAdd:S.user.matRecAdd,matRecEdit:S.user.matRecEdit,poReceived:S.user.poReceived};
     var data=await runServer('getBootstrapDataAI',perms);
     if(data){ S.matRecResp=data.matRecResp||[]; S.poReceived=data.poReceived||[]; }
     try{var fresh=await runServer('getUserPermissionsAI',S.user.id);if(fresh)S.user=Object.assign({},S.user,fresh);}catch(e){}
