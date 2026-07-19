@@ -68,7 +68,7 @@ html.dark .mat-card select{background:#1A1F28;border-color:#2A2F38;color:var(--i
 html.dark .dropzone{background:#0F141B;border-color:#2A2F38;}
 
 
-#app{height:100vh;}
+#app{height:100vh;overflow:hidden;}
 h1,h2,h3,.disp{font-family:'Space Grotesk',sans-serif;}
 input,select,button{font-family:inherit;font-size:13px;}
 ::selection{background:var(--accent-tint);}
@@ -101,7 +101,7 @@ input,select,button{font-family:inherit;font-size:13px;}
 .login-error{background:var(--danger-tint);color:var(--danger);font-size:12.5px;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-weight:500;}
 
 
-.shell{display:flex;height:100vh;overflow:hidden;}
+.shell{display:flex;height:100vh;overflow:hidden;transform-origin:top left;}
 .sidebar{width:54px;flex:none;background:var(--sidebar);color:#A8A297;display:flex;flex-direction:column;height:100vh;border-right:1px solid var(--sidebar-line);transition:width .25s ease;}
 .sidebar.expanded{width:160px;}
 .sidebar .brand{padding:10px 8px;border-bottom:1px solid var(--sidebar-line);display:flex;align-items:center;justify-content:center;}
@@ -428,7 +428,7 @@ var S = {
 };
 
 try{ S.darkMode=localStorage.getItem('matrec_dark_mode')==='true'; if(S.darkMode)document.documentElement.classList.add('dark'); }catch(e){}
-try{ var fs=parseInt(localStorage.getItem('matrec_font_size'),10); if(fs>=70&&fs<=130){S.fontSize=fs;document.body.style.zoom=fs/100;} }catch(e){}
+try{ var fs=parseInt(localStorage.getItem('matrec_font_size'),10); if(fs>=70&&fs<=130){S.fontSize=fs;} }catch(e){}
 
 /* ============================= APPS SCRIPT BRIDGE ============================= */
 function runServer(fnName,arg){
@@ -706,6 +706,8 @@ function render(){
   // Restore scroll position
   var newScrollEl=document.querySelector('.dt-scroll');
   if(newScrollEl){newScrollEl.scrollLeft=scrollLeft;newScrollEl.scrollTop=scrollTop;}
+  // Apply zoom to shell (not body - prevents height overflow)
+  if(S.fontSize!==100){var sh=document.querySelector('.shell');if(sh)sh.style.zoom=(S.fontSize/100);}
 }
 
 loadAll();
@@ -1809,9 +1811,9 @@ document.addEventListener('click',function(e){
     S.darkMode=!S.darkMode;document.documentElement.classList.toggle('dark',S.darkMode);
     try{localStorage.setItem('matrec_dark_mode',S.darkMode?'true':'false');}catch(ex){}render();return;
   }
-  if(a==='font-up'){S.fontSize=Math.min(130,S.fontSize+10);document.body.style.zoom=(S.fontSize/100);try{localStorage.setItem('matrec_font_size',String(S.fontSize));}catch(ex){}return;}
-  if(a==='font-down'){S.fontSize=Math.max(70,S.fontSize-10);document.body.style.zoom=(S.fontSize/100);try{localStorage.setItem('matrec_font_size',String(S.fontSize));}catch(ex){}return;}
-  if(a==='font-reset'){S.fontSize=100;document.body.style.zoom=1;try{localStorage.setItem('matrec_font_size','100');}catch(ex){}return;}
+  if(a==='font-up'){S.fontSize=Math.min(130,S.fontSize+10);var sh=document.querySelector('.shell');if(sh)sh.style.zoom=(S.fontSize/100);try{localStorage.setItem('matrec_font_size',String(S.fontSize));}catch(ex){}return;}
+  if(a==='font-down'){S.fontSize=Math.max(70,S.fontSize-10);var sh=document.querySelector('.shell');if(sh)sh.style.zoom=(S.fontSize/100);try{localStorage.setItem('matrec_font_size',String(S.fontSize));}catch(ex){}return;}
+  if(a==='font-reset'){S.fontSize=100;var sh=document.querySelector('.shell');if(sh)sh.style.zoom=1;try{localStorage.setItem('matrec_font_size','100');}catch(ex){}return;}
   if(a==='nav'){S.page=el.getAttribute('data-page');S.matRecEntry=null;render();return;}
   if(a==='logout'){S.user=null;S.page='login';render();return;}
   if(a==='dt-refresh'){S.dt.filters={};S.dt.dateFilters={};S.dt.filterOpen=null;S.dt.page=1;S.globalSearch='';refreshData();return;}
