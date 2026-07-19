@@ -91,7 +91,6 @@ var S = {
   ready:false, loadError:'', user:null, page:'login', syncing:false, sidebarOpen:true, sidebarCollapsed:true,
   matRecResp:[],
   poReceived:[],
-  users:[],
   toast:null, loginError:'',
   dt:dtState(),
   dtPo:dtState(),
@@ -198,32 +197,36 @@ async function silentRefreshAI(){
 async function loadAll(){
   S.ready=false;render();
   try{
-    var loginData=await runServer('getLoginDataAI');
-    S.users=loginData.users||[];
+    // Server just confirms it's ready — NO passwords sent to client
+    await runServer('getLoginDataAI');
     S.loadError='';
   }catch(err){ S.loadError=err.message; }
   S.ready=true;render();startClock();
 }
 
 async function doLogin(id,pw){
-  var u=S.users.find(function(x){return x.id.toLowerCase()===id.trim().toLowerCase()&&String(x.password)===pw;});
-  if(!u){S.loginError='Invalid user ID or password.';render();return;}
-  S.user=u;S.loginError='';
-  if(u.matRecView||u.matRecAdd) S.page='matRecView';
-  else if(u.poReceived) S.page='poRecView';
-  else S.page='matRecView';
-  render();
-  S.syncing=true;render();
+  // SERVER-SIDE validation — password never stored in client state
+  S.loginError='';render();
   try{
-    var perms={matRecView:u.matRecView,matRecAdd:u.matRecAdd,poReceived:u.poReceived};
+    var result=await runServer('validateLoginAI',{id:id.trim(),password:pw});
+    if(!result||!result.success){
+      S.loginError=result?result.error:'Login failed.';render();return;
+    }
+    // result.user has NO password field (stripped server-side)
+    S.user=result.user;S.loginError='';
+    if(S.user.matRecView||S.user.matRecAdd) S.page='matRecView';
+    else if(S.user.poReceived) S.page='poRecView';
+    else S.page='matRecView';
+    render();
+    S.syncing=true;render();
+    var perms={matRecView:S.user.matRecView,matRecAdd:S.user.matRecAdd,poReceived:S.user.poReceived};
     var data=await runServer('getBootstrapDataAI',perms);
     if(data){ S.matRecResp=data.matRecResp||[]; S.poReceived=data.poReceived||[]; }
-    try{var fresh=await runServer('getUserPermissionsAI',S.user.id);if(fresh)S.user=Object.assign({},S.user,fresh);}catch(e){}
     await loadColWidthsFromServer();
     S.syncing=false;
     if(S.matRecResp.length||S.poReceived.length){showToast('Loaded: '+S.matRecResp.length+' mat, '+S.poReceived.length+' PO rows.',false);}
     else{showToast('0 rows loaded.',true);}
-  }catch(err){S.syncing=false;showToast('Data load error: '+err.message,true);}
+  }catch(err){S.loginError='Login failed: '+err.message;S.syncing=false;render();}
 }
 
 async function refreshData(){

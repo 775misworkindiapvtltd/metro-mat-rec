@@ -223,8 +223,27 @@ function getUserPermissionsAI(id) {
 }
 
 function getLoginDataAI() {
+  // SECURITY: Never send passwords to client. Only send user IDs for display.
+  // Login validation is done server-side via validateLoginAI()
+  return { ready: true };
+}
+
+// SERVER-SIDE login validation — password never goes to client
+function validateLoginAI(credentials) {
+  if (!credentials || !credentials.id || !credentials.password) {
+    return { success: false, error: 'User ID and Password required.' };
+  }
   var usersRaw = sheetToObjectsAI(SHEETS_AI.login);
-  return { users: usersRaw.map(mapUserAI) };
+  var match = usersRaw.find(function (r) {
+    return String(r['ID'] || '').trim().toLowerCase() === String(credentials.id).trim().toLowerCase()
+      && String(r['PASSWORD'] || '').trim() === String(credentials.password);
+  });
+  if (!match) {
+    return { success: false, error: 'Invalid user ID or password.' };
+  }
+  var u = mapUserAI(match);
+  delete u.password; // NEVER send password to client
+  return { success: true, user: u };
 }
 
 function getBootstrapDataAI(perms) {
