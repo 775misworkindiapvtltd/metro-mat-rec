@@ -1676,12 +1676,20 @@ document.addEventListener('input',function(e){
     return;
   }
   if(el.hasAttribute('data-mattop')){
+    // Strip negative sign in real-time for number inputs
+    if(el.type==='number'&&el.value.indexOf('-')>=0){
+      el.value=el.value.replace(/-/g,'');
+    }
     if(S.matRecEntry){S.matRecEntry.topFields[el.getAttribute('data-mattop')]=el.value;}return;
   }
   if(el.hasAttribute('data-matfield')){
     if(S.matRecEntry){
       var i=parseInt(el.getAttribute('data-mati'),10);
       var f=el.getAttribute('data-matfield');
+      // Strip negative sign in real-time for number inputs
+      if(el.type==='number'&&el.value.indexOf('-')>=0){
+        el.value=el.value.replace(/-/g,'');
+      }
       S.matRecEntry.rows[i][f]=el.value;
       if(f==='recQty'||f==='cancelQty'){
         recalcPendingQty(i);
