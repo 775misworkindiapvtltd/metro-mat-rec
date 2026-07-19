@@ -410,7 +410,9 @@ function showSavingOverlay(msg){
 }
 function hideSavingOverlay(){var el=document.getElementById('savingOverlay');if(el)el.remove();}
 
-/* ============================= CLOCK ============================= */
+/* ============================= CLOCK + AUTO-REFRESH ============================= */
+var AUTO_REFRESH_MINUTES = 10; // Auto-refresh every 10 minutes
+
 function startClock(){
   setInterval(function(){
     var el=document.getElementById('liveClock');if(!el)return;
@@ -419,6 +421,28 @@ function startClock(){
     var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     el.textContent=pad(d.getDate())+'-'+months[d.getMonth()]+'-'+d.getFullYear()+' \u00b7 '+pad(h12)+':'+pad(m)+':'+pad(s)+' '+ampm;
   },1000);
+
+  // Auto-refresh data every X minutes (only when user is logged in)
+  setInterval(function(){
+    if(S.user&&!S.syncing){
+      console.log('[AUTO-REFRESH] Refreshing data silently...');
+      silentRefreshAI();
+    }
+  }, AUTO_REFRESH_MINUTES * 60 * 1000);
+}
+
+// Silent refresh — fetches fresh data without showing "Refreshing..." spinner
+// Does NOT reset filters/pagination (user's view stays intact)
+async function silentRefreshAI(){
+  try{
+    var perms={matRecView:S.user.matRecView,matRecAdd:S.user.matRecAdd,poReceived:S.user.poReceived};
+    var data=await runServer('getBootstrapDataAI',perms);
+    if(data){
+      S.matRecResp=data.matRecResp||[];
+      S.poReceived=data.poReceived||[];
+    }
+    render();
+  }catch(e){console.log('[AUTO-REFRESH] Failed:',e.message);}
 }
 
 /* ============================= LOGIN ============================= */

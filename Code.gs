@@ -232,19 +232,25 @@ function getBootstrapDataAI(perms) {
     debugInfo: []
   };
 
-  // Load ALL data always (no permission gating on data fetch).
-  // Permission only controls sidebar visibility on the frontend.
-  try {
-    var matRows = sheetToObjectsAI(SHEETS_AI.matRecResp);
-    result.matRecResp = mapMatRecAI(matRows);
-    result.debugInfo.push('MATERIAL REC RESPONSES: ' + matRows.length + ' rows');
-  } catch(e) { result.missingSheets.push(SHEETS_AI.matRecResp + ' ERR: ' + e.message); }
+  // Permission-based loading: only fetch sheets user actually needs (faster!)
+  var needMat = !perms || perms.matRecView || perms.matRecAdd;
+  var needPo = !perms || perms.poReceived;
 
-  try {
-    var poRows = sheetToObjectsAI(SHEETS_AI.poReceived);
-    result.poReceived = mapPoReceivedAI(poRows);
-    result.debugInfo.push('PO RECIEVED: ' + poRows.length + ' rows');
-  } catch(e) { result.missingSheets.push(SHEETS_AI.poReceived + ' ERR: ' + e.message); }
+  if (needMat) {
+    try {
+      var matRows = sheetToObjectsAI(SHEETS_AI.matRecResp);
+      result.matRecResp = mapMatRecAI(matRows);
+      result.debugInfo.push('MAT: ' + matRows.length);
+    } catch(e) { result.missingSheets.push(SHEETS_AI.matRecResp + ' ERR: ' + e.message); }
+  }
+
+  if (needPo) {
+    try {
+      var poRows = sheetToObjectsAI(SHEETS_AI.poReceived);
+      result.poReceived = mapPoReceivedAI(poRows);
+      result.debugInfo.push('PO: ' + poRows.length);
+    } catch(e) { result.missingSheets.push(SHEETS_AI.poReceived + ' ERR: ' + e.message); }
+  }
 
   try {
     result.users = sheetToObjectsAI(SHEETS_AI.login).map(mapUserAI);
