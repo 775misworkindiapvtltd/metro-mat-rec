@@ -211,6 +211,10 @@ table.entry input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0
 table.entry input.num{font-family:'JetBrains Mono',monospace;text-align:right;}
 table.entry input.cell-ro{background:#F5F4F0;color:var(--muted);border-color:#ECEAE4;cursor:not-allowed;}
 html.dark table.entry input.cell-ro{background:#0F141B;color:var(--muted);border-color:#2A2F38;}
+table.entry textarea{width:100%;padding:7px 9px;border:1.5px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);font-family:inherit;font-size:12px;line-height:1.4;resize:vertical;min-height:32px;max-height:120px;transition:border .15s;}
+table.entry textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-tint);}
+html.dark table.entry textarea{background:#1A1F28;border-color:#2A2F38;color:var(--ink);}
+html.dark table.entry textarea:focus{background:#0F141B;border-color:var(--accent);}
 table.entry select{width:100%;padding:7px 9px;border:1.5px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);font-size:12px;}
 table.entry select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-tint);}
 .trash-btn{border:none;background:transparent;color:var(--danger);cursor:pointer;padding:6px;border-radius:6px;line-height:1;display:inline-flex;align-items:center;justify-content:center;opacity:.6;transition:all .15s;}
@@ -1031,7 +1035,7 @@ function renderMatRecAdd(){
       {k:'invoiceRate',label:'Invoice Rate',w:110,num:true},
       {k:'inwardBatchNo',label:'Inward Batch No',w:140},
       {k:'grossWeight',label:'Gross Weight',w:110,num:true},
-      {k:'remarks',label:'Remarks',w:180},
+      {k:'remarks',label:'Remarks',w:180,type:'textarea'},
       {k:'newUniqueNo',label:'New Unique No',w:140,ro:true},
       {k:'outwardBatchNo',label:'Outward Batch No',w:140,ro:true},
       {k:'matRecImage',label:'Mat Rec Image',w:120,type:'upload'}
@@ -1055,6 +1059,9 @@ function renderMatRecAdd(){
           var files=Array.isArray(r[c.k])?r[c.k]:[];
           var fileLinks=files.length?files.map(function(f,fi){return '<a class="click-link" href="'+esc(f.url||'#')+'" target="_blank">'+(fi+1)+'</a>';}).join(' '):'';
           return '<td><div class="dropzone-sm" data-rowdz="'+i+'">\uD83D\uDCF7'+(fileLinks?' '+fileLinks:'')+'</div></td>';
+        }
+        if(c.type==='textarea'){
+          return '<td><textarea data-matfield="'+c.k+'" data-mati="'+i+'" placeholder="'+esc(c.label)+'" autocomplete="off" style="'+errStyle+'resize:vertical;min-height:32px;max-height:120px;">'+esc(v)+'</textarea></td>';
         }
         if(c.ro){
           return '<td><input class="cell-ro'+(c.num?' num':'')+'" type="'+(c.num?'number':'text')+'" data-matfield="'+c.k+'" data-mati="'+i+'" value="'+esc(v)+'" readonly tabindex="-1" '+(c.num?'step="any"':'')+' autocomplete="off"></td>';
