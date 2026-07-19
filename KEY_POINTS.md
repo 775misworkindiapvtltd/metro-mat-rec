@@ -144,6 +144,13 @@
 - Client shows a toast for: success (which PDFs were made), partial errors (`PDF issue: <type>: <message>`), total failure, or "no matching rows for punched/pending/overall" — nothing fails silently anymore.
 - Local `S.matRecResp` state is also patched with the new links immediately after generation, so the list table's REC QTY PDF / PEND QTY PDF / Overall PDF columns update without needing a page refresh.
 
+### PDF Content & Layout (updated)
+- **Orientation:** All 3 PDFs (Punched/Pending/Overall) are now **landscape** (`@page{size:A4 landscape;}`), not portrait — needed because there are many columns.
+- **Columns:** All 3 PDF types (punched/pending/overall) now show the SAME full set of row-level columns: Change Brand, Brand, Sales Order ID, Item Name, Pending QTY, REC QTY, Cancel QTY, PO Rate, Size, Unit, Invoice Rate, Inward Batch No, Gross Wt, Remarks, New Unique No, Outward Batch, Image.
+- **Image column:** Shows "Click Here" hyperlink(s) for `matRecImage` — if a row has multiple image URLs (comma-separated or array), each gets its own "Click Here 1", "Click Here 2", etc., comma-separated. Same logic applied to top-level Invoice Upload and Eway Bill Image fields in the info section.
+- **Pending PDF gating:** Pending PDF is generated ONLY when `pendingQtyTop` (Total Pending Qty, top-level sum across all rows) is greater than 0. If total is 0, no Pending PDF is generated/linked — even if some individual row still shows a leftover pendingQty.
+- Both client-side (`buildPdfHtml` — used for the in-form "PDF View" preview popup) and server-side (`buildPdfHtmlAI` — used in the auto-generate-on-save flow) were updated identically so preview and saved PDF always match.
+
 ---
 
 ## 💾 SHEET COLUMN LAYOUT (37 columns saved)
