@@ -952,7 +952,7 @@ function onPoSelected(poNo){
       inwardBatchNo:'',
       grossWeight:'',
       remarks:'',
-      newUniqueNo:String(r.uniqueNoAdd||'').trim(),
+      newUniqueNo:'',
       outwardBatchNo:'',
       matRecImage:[],
       poQuantity:poQty,
@@ -1040,7 +1040,6 @@ function renderMatRecAdd(){
       {k:'inwardBatchNo',label:'Inward Batch No',w:140},
       {k:'grossWeight',label:'Gross Weight',w:110,num:true},
       {k:'remarks',label:'Remarks',w:180,type:'textarea'},
-      {k:'newUniqueNo',label:'New Unique No',w:140,ro:true},
       {k:'outwardBatchNo',label:'Outward Batch No',w:140,ro:true},
       {k:'matRecImage',label:'Mat Rec Image',w:120,type:'upload'}
     ];
