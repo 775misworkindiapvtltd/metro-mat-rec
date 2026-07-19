@@ -230,13 +230,16 @@ function getLoginDataAI() {
 
 // SERVER-SIDE login validation — password never goes to client
 function validateLoginAI(credentials) {
-  if (!credentials || !credentials.id || !credentials.password) {
+  if (!credentials || !credentials.id || credentials.password === undefined || credentials.password === null || credentials.password === '') {
     return { success: false, error: 'User ID and Password required.' };
   }
   var usersRaw = sheetToObjectsAI(SHEETS_AI.login);
+  var inputId = String(credentials.id).trim().toLowerCase();
+  var inputPw = String(credentials.password).trim();
   var match = usersRaw.find(function (r) {
-    return String(r['ID'] || '').trim().toLowerCase() === String(credentials.id).trim().toLowerCase()
-      && String(r['PASSWORD'] || '').trim() === String(credentials.password);
+    var sheetId = String(pickAI(r, ['ID', 'Id', 'id', 'USER ID', 'User ID']) || '').trim();
+    var sheetPw = String(pickAI(r, ['PASSWORD', 'Password', 'password', 'PASS', 'Pass']) || '').trim();
+    return sheetId.toLowerCase() === inputId && sheetPw === inputPw;
   });
   if (!match) {
     return { success: false, error: 'Invalid user ID or password.' };
