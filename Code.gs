@@ -702,6 +702,124 @@ function savePdfToDriveAI(payload) {
   }
 }
 
+// ===== BUILD PDF HTML (server-side, mirrors client buildPdfHtml but table-based
+// instead of CSS grid, because Apps Script's HTML->PDF renderer does NOT reliably
+// support display:grid/flex — using tables avoids blank/broken PDFs) =====
+function escAI_(v) {
+  return String(v === undefined || v === null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function buildPdfHtmlAI(title, topFields, rows, type) {
+  var T = topFields || {};
+  var isPunched = (type === 'punched');
+  var isOverall = (type === 'overall');
+  var cols;
+  if (isPunched) {
+    cols = [['brand','Brand'],['salesOrderId','Sales Order ID'],['itemName','Item Name'],['recQty','REC QTY'],['cancelQty','Cancel QTY'],['poRate','PO Rate'],['size','Size'],['unit','Unit'],['invoiceRate','Invoice Rate'],['inwardBatchNo','Inward Batch No'],['grossWeight','Gross Wt'],['remarks','Remarks'],['outwardBatchNo','Outward Batch']];
+  } else if (isOverall) {
+    cols = [['changeBrand','Change Brand'],['brand','Brand'],['salesOrderId','Sales Order ID'],['itemName','Item Name'],['pendingQty','Pending QTY'],['recQty','REC QTY'],['cancelQty','Cancel QTY'],['poRate','PO Rate'],['size','Size'],['unit','Unit'],['invoiceRate','Invoice Rate'],['inwardBatchNo','Inward Batch No'],['grossWeight','Gross Wt'],['remarks','Remarks'],['outwardBatchNo','Outward Batch']];
+  } else {
+    cols = [['brand','Brand'],['salesOrderId','Sales Order ID'],['itemName','Item Name'],['pendingQty','Pending QTY'],['poRate','PO Rate'],['size','Size'],['unit','Unit'],['newUniqueNo','New Unique No']];
+  }
+  var tblHead = '<tr>' + cols.map(function(c){return '<th style="border:1px solid #ddd;padding:6px 8px;background:#1a2130;color:#fff;font-size:10px;text-transform:uppercase;">'+escAI_(c[1])+'</th>';}).join('') + '</tr>';
+  var tblBody = rows.map(function(r,i){
+    return '<tr style="'+(i%2===0?'':'background:#f9f9f6;')+'">' + cols.map(function(c){return '<td style="border:1px solid #ddd;padding:5px 8px;font-size:11px;">'+escAI_(r[c[0]])+'</td>';}).join('') + '</tr>';
+  }).join('');
+  var now = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd-MMM-yyyy HH:mm:ss');
+  var infoRows = [
+    ['Vendor', T.vendorName, 'PO Number', T.poNo, 'Invoice No', T.invoiceNumber],
+    ['Invoice Date', T.invoiceDate, 'Due Date', T.dueDate, 'Bundle', T.bandel],
+    ['Invoice QTY', T.invQty, 'Pending QTY', T.pendingQtyTop, '', '']
+  ];
+  var infoHtml = '<table style="width:100%;margin-bottom:16px;font-size:11px;">' + infoRows.map(function(row){
+    return '<tr>' + [0,2,4].map(function(idx){
+      return '<td style="padding:4px 8px;width:16.6%;"><label style="font-weight:700;color:#666;font-size:9px;text-transform:uppercase;display:block;">'+escAI_(row[idx])+'</label><span style="color:#1a1712;font-weight:500;">'+escAI_(row[idx+1])+'</span></td>';
+    }).join('') + '</tr>';
+  }).join('') + '</table>';
+  return '<!DOCTYPE html><html><head><title>'+escAI_(title)+'</title><style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;padding:20px;color:#333;}.header{text-align:center;margin-bottom:20px;border-bottom:2px solid #b4862b;padding-bottom:12px;}.header h1{font-size:16px;color:#1a1712;margin-bottom:4px;}.header h2{font-size:12px;color:#666;font-weight:normal;}table{width:100%;border-collapse:collapse;}.footer{margin-top:20px;text-align:right;font-size:10px;color:#888;}</style></head><body><div class="header"><h1>'+escAI_(title)+'</h1><h2>Generated: '+now+'</h2></div>'+infoHtml+'<table>'+tblHead+tblBody+'</table><div class="footer">Rows: '+rows.length+' | '+escAI_(title)+'</div></body></html>';
+}
+
+// ===== GENERATE ALL 3 PDFs + SAVE TO DRIVE + LINK TO SHEET — ONE SYNCHRONOUS CALL =====
+// No silent failures: every error is captured and returned to the client so it can be shown.
+// payload: { topFields, rows (ALL rows of the entry, not just punched), matRecNo }
+function generateAndLinkPdfsAI(payload) {
+  try {
+    if (!payload || !payload.matRecNo) return { status: 'error', message: 'Missing matRecNo' };
+    var top = payload.topFields || {};
+    var rows = payload.rows || [];
+    var matRecNo = String(payload.matRecNo).trim();
+
+    var ss = getSSAI();
+    var sh = ss.getSheetByName(SHEETS_AI.matRecResp);
+    if (!sh) return { status: 'error', message: 'Sheet not found: ' + SHEETS_AI.matRecResp };
+
+    // Folder ID from DROPDOWN sheet C2
+    var folderId = '';
+    try {
+      var ddSh = ss.getSheetByName('DROPDOWN');
+      if (!ddSh) {
+        var allSheets = ss.getSheets().map(function(s){return s.getName();});
+        for (var i = 0; i < allSheets.length; i++) {
+          if (allSheets[i].toUpperCase().replace(/\s+/g,'') === 'DROPDOWN') { ddSh = ss.getSheetByName(allSheets[i]); break; }
+        }
+      }
+      if (ddSh) folderId = String(ddSh.getRange('C2').getValue() || '').trim();
+    } catch (e) {}
+    if (!folderId) return { status: 'error', message: 'Folder ID not found in DROPDOWN sheet C2. Please add folder ID there.' };
+
+    var folder;
+    try { folder = DriveApp.getFolderById(folderId); }
+    catch (e) { return { status: 'error', message: 'Invalid Folder ID in DROPDOWN C2: ' + e.message }; }
+
+    var punchedRows = rows.filter(function(r){ return (parseFloat(r.recQty)||0) > 0 || (parseFloat(r.cancelQty)||0) > 0; });
+    var pendingRows = rows.filter(function(r){ return (parseFloat(r.pendingQty)||0) > 0; });
+    var overallRows = rows;
+
+    var links = { punched: '', pending: '', overall: '' };
+    var errors = {};
+
+    function makeAndSave(type, title, rowsForType) {
+      if (!rowsForType.length) return '';
+      try {
+        var html = buildPdfHtmlAI(title, top, rowsForType, type);
+        var blob = Utilities.newBlob(html, 'text/html', 'temp.html');
+        var pdfBlob = blob.getAs('application/pdf').setName(type + '_' + String(top.poNo||'PO').replace(/[^a-zA-Z0-9]/g,'_') + '_' + matRecNo + '.pdf');
+        var file = folder.createFile(pdfBlob);
+        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        return file.getUrl();
+      } catch (e) {
+        errors[type] = e.message;
+        return '';
+      }
+    }
+
+    links.punched = makeAndSave('punched', 'Material Received - Punched Entry', punchedRows);
+    links.pending = makeAndSave('pending', 'Material Received - Pending Quantity', pendingRows);
+    links.overall = makeAndSave('overall', 'Material Received - Complete Entry', overallRows);
+
+    // Write links back to sheet — find ALL rows matching matRecNo (col AI = 35) in one pass
+    var lastRow = sh.getLastRow();
+    var updatedRows = 0;
+    if (lastRow > 1) {
+      var aiVals = sh.getRange(2, 35, lastRow - 1, 1).getValues();
+      for (var r = 0; r < aiVals.length; r++) {
+        if (String(aiVals[r][0] || '').trim() === matRecNo) {
+          var rowNum = r + 2;
+          if (links.punched) sh.getRange(rowNum, 32).setValue(links.punched); // AF
+          if (links.pending) sh.getRange(rowNum, 33).setValue(links.pending); // AG
+          if (links.overall) sh.getRange(rowNum, 36).setValue(links.overall); // AJ
+          updatedRows++;
+        }
+      }
+    }
+    if (updatedRows === 0) errors.linking = 'No rows found in sheet matching MAT-REC number ' + matRecNo + ' — links generated but NOT written to sheet.';
+
+    return { status: 'ok', links: links, errors: errors, updatedRows: updatedRows };
+  } catch (err) {
+    return { status: 'error', message: err.message };
+  }
+}
+
 // Save PDF link to MAT REC RESPONSES
 // type='punched' → col 32 (AF), type='pending' → col 33 (AG), type='overall' → col 36 (AJ)
 function savePdfLinkToSheetAI(payload) {

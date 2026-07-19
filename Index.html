@@ -1305,17 +1305,7 @@ async function submitMatRec(){
     var ts=fmtNow();
     var savedMatRecNo=result.matRecNo||'';
     S.lastMatRecNo=savedMatRecNo;
-    
-    // Auto-generate all 3 PDFs and save links to sheet
-    var punchedRows=validRows.filter(function(r){return parseFloat(r.recQty)>0||parseFloat(r.cancelQty)>0;});
-    var pendingRows=E.rows.filter(function(r){return parseFloat(r.pendingQty)>0;});
-    var allRows=E.rows;
-    
-    // Generate PDFs in background (don't wait)
-    if(punchedRows.length) savePdfAndLink('Material Received - Punched',T,punchedRows,'punched',savedMatRecNo);
-    if(pendingRows.length) savePdfAndLink('Material Received - Pending',T,pendingRows,'pending',savedMatRecNo);
-    if(allRows.length) savePdfAndLink('Material Received - Overall',T,allRows,'overall',savedMatRecNo);
-    
+
     validRows.forEach(function(r){
       S.matRecResp.push(Object.assign({},T,r,{timestamp:ts,loginName:S.user.name||S.user.id,status:'ACTIVE',matRecNo:savedMatRecNo}));
     });
@@ -1330,7 +1320,38 @@ async function submitMatRec(){
     }
 
     S.matRecEntry=null;S.page='matRecView';S.editMode=false;S.editMatRecNo='';
-    showToast('Saved '+result.saved+' row(s). ('+savedMatRecNo+')'+(E.editMode?' [Edit complete]':' PDFs generating...'),false);
+    showToast('Saved '+result.saved+' row(s). ('+savedMatRecNo+'). Generating PDFs\u2026',false);
+
+    // Generate all 3 PDFs + save to Drive + link to sheet in ONE synchronous server call.
+    // No silent failures — errors are shown as toast.
+    try{
+      var pdfRes=await runServer('generateAndLinkPdfsAI',{topFields:T,rows:E.rows,matRecNo:savedMatRecNo});
+      if(pdfRes&&pdfRes.status==='ok'){
+        var l=pdfRes.links||{};
+        var made=[l.punched?'Punched':'',l.pending?'Pending':'',l.overall?'Overall':''].filter(Boolean).join(', ');
+        var errKeys=pdfRes.errors?Object.keys(pdfRes.errors):[];
+        if(errKeys.length){
+          showToast('PDF issue: '+errKeys.map(function(k){return k+': '+pdfRes.errors[k];}).join(' | '),true);
+        } else if(made){
+          // Reflect links in local state so the list table shows them immediately
+          S.matRecResp.forEach(function(r){
+            if(String(r.matRecNo||'').trim()===savedMatRecNo){
+              if(l.punched)r.recQtyPdf=l.punched;
+              if(l.pending)r.pendQtyPdf=l.pending;
+              if(l.overall)r.overallPdf=l.overall;
+            }
+          });
+          render();
+          showToast('PDF(s) saved to Drive & linked: '+made,false);
+        } else {
+          showToast('No PDF generated (no matching rows for punched/pending/overall).',true);
+        }
+      } else {
+        showToast('PDF generation failed: '+(pdfRes&&pdfRes.message?pdfRes.message:'unknown error'),true);
+      }
+    }catch(pdfErr){
+      showToast('PDF generation error: '+pdfErr.message,true);
+    }
   }catch(err){S.saving=false;hideSavingOverlay();showToast('Save failed: '+err.message,true);}
 }
 
@@ -1358,17 +1379,6 @@ function generatePdfOverall(){
   var rows=E.rows;
   if(!rows.length){showToast('No rows to generate PDF.',true);return;}
   openPdfPopup('Material Received - Complete Entry',T,rows,'overall');
-}
-
-/* Auto-save PDF to Drive and link to sheet (runs in background, NO toast) */
-function savePdfAndLink(title,topFields,rows,type,matRecNo){
-  var html=buildPdfHtml(title,topFields,rows,type);
-  var fileName=type+'_'+String(topFields.poNo||'PO').replace(/[^a-zA-Z0-9]/g,'_')+'_'+matRecNo;
-  runServer('savePdfToDriveAI',{htmlContent:html,fileName:fileName}).then(function(res){
-    if(res&&res.status==='ok'&&res.url){
-      runServer('savePdfLinkToSheetAI',{pdfUrl:res.url,matRecNo:matRecNo,type:type}).catch(function(e){});
-    }
-  }).catch(function(e){});
 }
 
 /* Build PDF HTML content (reusable) */
