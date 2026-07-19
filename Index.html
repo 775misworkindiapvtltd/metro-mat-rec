@@ -944,9 +944,9 @@ function getAlreadyReceived(poNo,vendorName,itemName){
   var iLow=(itemName||'').toLowerCase();
   S.matRecResp.forEach(function(r){
     if(String(r.poNo||'').toLowerCase()===pLow && String(r.vendorName||'').toLowerCase()===vLow && String(r.itemName||'').toLowerCase()===iLow){
-      // Only count rows with ACTIVE status
+      // Only count rows with ACTIVE status (not blank, not cancelled)
       var status=String(r.status||'').trim().toUpperCase();
-      if(status==='ACTIVE'||status===''){
+      if(status==='ACTIVE'){
         var q=parseFloat(r.recQty);
         if(!isNaN(q)) total+=q;
       }
