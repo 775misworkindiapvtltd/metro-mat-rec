@@ -176,6 +176,9 @@ table.dt thead th.sno-col{background:#080C12;padding:0;}
 table.dt thead th.sno-col .th-inner{padding:6px 4px;min-height:auto;}
 table.dt thead th.sno-col .th-label{cursor:default;color:#8A8479;font-size:9px;}
 table.dt thead th.filtered{background:#2A1F10 !important;}
+table.dt thead th.drag-over{border-left:3px solid var(--accent) !important;}
+table.dt thead th[draggable]{cursor:grab;}
+table.dt thead th[draggable]:active{cursor:grabbing;opacity:.7;}
 table.dt tbody td{padding:8px 12px;border-bottom:1px solid var(--line-light);border-right:1px solid #F2F0EA;font-size:12.5px;white-space:normal;word-break:break-word;vertical-align:middle;overflow-wrap:anywhere;}
 table.dt tbody td.sno-cell{text-align:center;color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;background:#FAFAF7;border-right:1.5px solid var(--line);vertical-align:middle;padding:6px 4px;width:38px;}
 table.dt tbody tr:nth-child(even){background:#FAFAF7;}
@@ -397,7 +400,7 @@ var PO_REC_COLS=[
 
 
 /* ============================= STATE ============================= */
-function dtState(){return{sort:null,dir:1,hidden:new Set(),filters:{},filterOpen:null,widths:{},page:1,pageSize:50,dateFilters:{}};}
+function dtState(){return{sort:null,dir:1,hidden:new Set(),filters:{},filterOpen:null,widths:{},page:1,pageSize:50,dateFilters:{},colOrder:null};}
 
 var S = {
   ready:false, loadError:'', user:null, page:'login', syncing:false, sidebarOpen:true, sidebarExpanded:false,
@@ -617,6 +620,10 @@ async function loadColWidthsFromServer(){
     if(poW&&poW.widths)S.dtPo.widths=poW.widths;
     var entW=await runServer('loadUserSettingsAI',{page:'matRecEntry'});
     if(entW&&entW.widths)S.entryWidths=entW.widths;
+    var matO=await runServer('loadUserSettingsAI',{page:'matRecView_order'});
+    if(matO&&matO.widths&&matO.widths.order)S.dt.colOrder=matO.widths.order;
+    var poO=await runServer('loadUserSettingsAI',{page:'poRecView_order'});
+    if(poO&&poO.widths&&poO.widths.order)S.dtPo.colOrder=poO.widths.order;
   }catch(e){}
 }
 
@@ -733,6 +740,11 @@ function renderDataTable(){
   if(st.page>tp)st.page=tp;if(st.page<1)st.page=1;
   var si=(st.page-1)*ps;var pageRows=rows.slice(si,si+ps);
   var visCols=MAT_REC_COLS.filter(function(c){return !st.hidden.has(c.key);});
+  // Apply custom column order if set
+  if(st.colOrder&&st.colOrder.length){
+    var orderMap={};st.colOrder.forEach(function(k,i){orderMap[k]=i;});
+    visCols.sort(function(a,b){var ia=orderMap[a.key]!==undefined?orderMap[a.key]:999;var ib=orderMap[b.key]!==undefined?orderMap[b.key]:999;return ia-ib;});
+  }
   var hasActiveFilters=Object.values(st.filters).some(function(v){return !!v;})||Object.keys(st.dateFilters||{}).length>0||!!S.globalSearch;
 
   var snoW=38;
@@ -746,7 +758,7 @@ function renderDataTable(){
     var isDate=isDateColumn(c.key);var searchIcon=isDate?'\uD83D\uDCC5':'\u2315';
     var filterHtml='';
     if(isFilterOpen){filterHtml='<div class="th-filter"><input type="text" placeholder="Filter '+esc(c.label)+'\u2026" data-action="filter" data-col="'+c.key+'" value="'+esc(st.filters[c.key]||'')+'"></div>';}
-    return '<th class="'+(hasFilter?'filtered':'')+'" style="width:'+w+'px;min-width:'+w+'px;max-width:'+w+'px;" data-col="'+c.key+'"><div class="th-inner"><div class="th-row"><span class="th-label" data-action="sort" data-col="'+c.key+'">'+esc(c.label)+'</span><span class="sort-ic">'+sortIcon+'</span><span class="search-ic'+(hasFilter?' active':'')+'" data-action="togglesearch" data-col="'+c.key+'">'+searchIcon+'</span></div>'+filterHtml+'<div class="resize-handle" data-action="resize" data-col="'+c.key+'"></div></div></th>';
+    return '<th draggable="true" data-dragcol="'+c.key+'" class="'+(hasFilter?'filtered':'')+'" style="width:'+w+'px;min-width:'+w+'px;max-width:'+w+'px;" data-col="'+c.key+'"><div class="th-inner"><div class="th-row"><span class="th-label" data-action="sort" data-col="'+c.key+'">'+esc(c.label)+'</span><span class="sort-ic">'+sortIcon+'</span><span class="search-ic'+(hasFilter?' active':'')+'" data-action="togglesearch" data-col="'+c.key+'">'+searchIcon+'</span></div>'+filterHtml+'<div class="resize-handle" data-action="resize" data-col="'+c.key+'"></div></div></th>';
   }).join('');
 
   var bod=pageRows.length?pageRows.map(function(r,idx){
@@ -832,6 +844,11 @@ function renderPoRecTable(){
   if(st.page>tp)st.page=tp;if(st.page<1)st.page=1;
   var si=(st.page-1)*ps;var pageRows=rows.slice(si,si+ps);
   var visCols=PO_REC_COLS.filter(function(c){return !st.hidden.has(c.key);});
+  // Apply custom column order if set
+  if(st.colOrder&&st.colOrder.length){
+    var orderMap={};st.colOrder.forEach(function(k,i){orderMap[k]=i;});
+    visCols.sort(function(a,b){var ia=orderMap[a.key]!==undefined?orderMap[a.key]:999;var ib=orderMap[b.key]!==undefined?orderMap[b.key]:999;return ia-ib;});
+  }
   var hasActiveFilters=Object.values(st.filters).some(function(v){return !!v;})||Object.keys(st.dateFilters||{}).length>0||!!S.globalSearchPo;
 
   var snoW=38;
@@ -845,7 +862,7 @@ function renderPoRecTable(){
     var isDate=isDateColumn(c.key);var searchIcon=isDate?'\uD83D\uDCC5':'\u2315';
     var filterHtml='';
     if(isFilterOpen){filterHtml='<div class="th-filter"><input type="text" placeholder="Filter '+esc(c.label)+'\u2026" data-action="pofilter" data-col="'+c.key+'" value="'+esc(st.filters[c.key]||'')+'"></div>';}
-    return '<th class="'+(hasFilter?'filtered':'')+'" style="width:'+w+'px;min-width:'+w+'px;max-width:'+w+'px;" data-col="'+c.key+'"><div class="th-inner"><div class="th-row"><span class="th-label" data-action="posort" data-col="'+c.key+'">'+esc(c.label)+'</span><span class="sort-ic">'+sortIcon+'</span><span class="search-ic'+(hasFilter?' active':'')+'" data-action="potogglefilter" data-col="'+c.key+'">'+searchIcon+'</span></div>'+filterHtml+'<div class="resize-handle" data-action="poresize" data-col="'+c.key+'"></div></div></th>';
+    return '<th draggable="true" data-dragcol="'+c.key+'" data-dragtable="po" class="'+(hasFilter?'filtered':'')+'" style="width:'+w+'px;min-width:'+w+'px;max-width:'+w+'px;" data-col="'+c.key+'"><div class="th-inner"><div class="th-row"><span class="th-label" data-action="posort" data-col="'+c.key+'">'+esc(c.label)+'</span><span class="sort-ic">'+sortIcon+'</span><span class="search-ic'+(hasFilter?' active':'')+'" data-action="potogglefilter" data-col="'+c.key+'">'+searchIcon+'</span></div>'+filterHtml+'<div class="resize-handle" data-action="poresize" data-col="'+c.key+'"></div></div></th>';
   }).join('');
 
   var bod=pageRows.length?pageRows.map(function(r,idx){
@@ -1843,6 +1860,60 @@ document.addEventListener('mouseup',function(e){
   if(resizeCtx.isPo){S.dtPo.widths[resizeCtx.c]=finalW;saveColWidthsToServer('poRecView',S.dtPo.widths);}
   else{S.dt.widths[resizeCtx.c]=finalW;saveColWidthsToServer('matRecView',S.dt.widths);}
   resizeCtx.el.classList.remove('active');resizeCtx=null;render();
+});
+
+// Column drag & drop reorder
+var dragColKey=null,dragTable=null;
+document.addEventListener('dragstart',function(e){
+  var th=e.target.closest('th[data-dragcol]');
+  if(!th)return;
+  dragColKey=th.getAttribute('data-dragcol');
+  dragTable=th.getAttribute('data-dragtable')||'mat';
+  e.dataTransfer.effectAllowed='move';
+  e.dataTransfer.setData('text/plain',dragColKey);
+  th.style.opacity='0.5';
+});
+document.addEventListener('dragend',function(e){
+  var th=e.target.closest('th[data-dragcol]');
+  if(th)th.style.opacity='1';
+  document.querySelectorAll('.drag-over').forEach(function(el){el.classList.remove('drag-over');});
+  dragColKey=null;dragTable=null;
+});
+document.addEventListener('dragover',function(e){
+  var th=e.target.closest('th[data-dragcol]');
+  if(!th||!dragColKey)return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect='move';
+  document.querySelectorAll('.drag-over').forEach(function(el){el.classList.remove('drag-over');});
+  th.classList.add('drag-over');
+});
+document.addEventListener('dragleave',function(e){
+  var th=e.target.closest('th[data-dragcol]');
+  if(th)th.classList.remove('drag-over');
+});
+document.addEventListener('drop',function(e){
+  var th=e.target.closest('th[data-dragcol]');
+  if(!th||!dragColKey)return;
+  e.preventDefault();
+  th.classList.remove('drag-over');
+  var targetKey=th.getAttribute('data-dragcol');
+  if(targetKey===dragColKey)return;
+  // Determine which table and reorder
+  var isPo=(dragTable==='po');
+  var st=isPo?S.dtPo:S.dt;
+  var allCols=isPo?PO_REC_COLS:MAT_REC_COLS;
+  // Build current order
+  var currentOrder=st.colOrder||allCols.map(function(c){return c.key;});
+  var fromIdx=currentOrder.indexOf(dragColKey);
+  var toIdx=currentOrder.indexOf(targetKey);
+  if(fromIdx<0||toIdx<0)return;
+  // Move column
+  currentOrder.splice(fromIdx,1);
+  currentOrder.splice(toIdx,0,dragColKey);
+  st.colOrder=currentOrder;
+  // Save to server
+  saveColWidthsToServer(isPo?'poRecView_order':'matRecView_order',{order:currentOrder});
+  render();
 });
 
 // Dropzone drag & drop support
