@@ -428,6 +428,39 @@ function getDropdownDataAI() {
   return result;
 }
 
+// ===== FILE UPLOAD TO GOOGLE DRIVE =====
+// Uploads a file (base64) to the folder specified in DROPDOWN C2
+function uploadFileToDriveAI(payload) {
+  try {
+    if (!payload || !payload.data || !payload.fileName || !payload.mimeType) {
+      return { status: 'error', message: 'Missing file data, fileName or mimeType' };
+    }
+    var ss = getSSAI();
+    var folderId = '';
+    try {
+      var ddSh = ss.getSheetByName('DROPDOWN');
+      if (!ddSh) {
+        var allSheets = ss.getSheets().map(function(s){return s.getName();});
+        for (var i = 0; i < allSheets.length; i++) {
+          if (allSheets[i].toUpperCase().replace(/\s+/g,'') === 'DROPDOWN') {
+            ddSh = ss.getSheetByName(allSheets[i]); break;
+          }
+        }
+      }
+      if (ddSh) folderId = String(ddSh.getRange('C2').getValue() || '').trim();
+    } catch(e) {}
+    if (!folderId) return { status: 'error', message: 'Folder ID not found in DROPDOWN C2' };
+    
+    var blob = Utilities.newBlob(Utilities.base64Decode(payload.data), payload.mimeType, payload.fileName);
+    var folder = DriveApp.getFolderById(folderId);
+    var file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    return { status: 'ok', url: file.getUrl(), name: payload.fileName };
+  } catch (err) {
+    return { status: 'error', message: err.message };
+  }
+}
+
 function debugPoHeadersAI() {
   var ss = getSSAI();
   if (!ss) { Logger.log('ERROR: Could not open spreadsheet! Check SPREADSHEET_ID_AI at top of file.'); return; }

@@ -465,6 +465,19 @@ function showSavingOverlay(msg){
 }
 function hideSavingOverlay(){var el=document.getElementById('savingOverlay');if(el)el.remove();}
 
+/* Upload file to Google Drive (reads as base64, sends to server) */
+function uploadFileToDrive(file,callback){
+  var reader=new FileReader();
+  reader.onload=function(){
+    var base64=reader.result.split(',')[1];
+    runServer('uploadFileToDriveAI',{data:base64,fileName:file.name,mimeType:file.type||'application/octet-stream'}).then(function(res){
+      if(res&&res.status==='ok'){callback(null,{name:file.name,url:res.url});}
+      else{callback(res?res.message:'Upload failed');}
+    }).catch(function(err){callback(err.message);});
+  };
+  reader.readAsDataURL(file);
+}
+
 
 /* ============================= CLOCK + AUTO-REFRESH ============================= */
 var AUTO_REFRESH_MINUTES = 10;
@@ -1575,17 +1588,27 @@ document.addEventListener('click',function(e){
   // Row upload click
   var rowDz=e.target.closest('[data-rowdz]');
   if(rowDz&&S.matRecEntry){
-    if(e.target.closest('.click-link'))return; // Don't trigger upload when clicking file links
+    if(e.target.closest('.click-link'))return;
     var ri=parseInt(rowDz.getAttribute('data-rowdz'),10);
     var inp=document.createElement('input');inp.type='file';inp.accept='image/*,.pdf,.doc,.docx';inp.multiple=true;
     inp.onchange=function(){
       if(inp.files.length){
         if(!Array.isArray(S.matRecEntry.rows[ri].matRecImage))S.matRecEntry.rows[ri].matRecImage=[];
+        var pending=inp.files.length;
+        showToast('Uploading '+pending+' file(s) to Drive...',false);
         for(var fi=0;fi<inp.files.length;fi++){
-          var url=URL.createObjectURL(inp.files[fi]);
-          S.matRecEntry.rows[ri].matRecImage.push({name:inp.files[fi].name,url:url});
+          (function(f){
+            uploadFileToDrive(f,function(err,result){
+              pending--;
+              if(!err&&result){
+                S.matRecEntry.rows[ri].matRecImage.push(result);
+              } else {
+                S.matRecEntry.rows[ri].matRecImage.push({name:f.name,url:'',error:err||'failed'});
+              }
+              if(pending<=0){render();showToast('Upload complete',false);}
+            });
+          })(inp.files[fi]);
         }
-        render();
       }
     };
     inp.click();return;
@@ -1695,27 +1718,44 @@ document.addEventListener('drop',function(e){
   var files=e.dataTransfer.files;
   if(files.length>0){
     if(!Array.isArray(S.matRecEntry.topFields[field]))S.matRecEntry.topFields[field]=[];
+    var pending=files.length;
+    showToast('Uploading '+pending+' file(s) to Drive...',false);
     for(var fi=0;fi<files.length;fi++){
-      var url=URL.createObjectURL(files[fi]);
-      S.matRecEntry.topFields[field].push({name:files[fi].name,url:url});
+      (function(f){
+        uploadFileToDrive(f,function(err,result){
+          pending--;
+          if(!err&&result){S.matRecEntry.topFields[field].push(result);}
+          else{S.matRecEntry.topFields[field].push({name:f.name,url:'',error:err||'failed'});}
+          if(pending<=0){render();showToast('Upload complete',false);}
+        });
+      })(files[fi]);
     }
-    render();
   }
 });
 document.addEventListener('click',function(e){
   var dz=e.target.closest('.dropzone');
   if(!dz||!S.matRecEntry)return;
-  if(e.target.closest('.click-link'))return; // Don't trigger upload when clicking file links
+  if(e.target.closest('.click-link'))return;
   var field=dz.getAttribute('data-dropzone');if(!field)return;
   var inp=document.createElement('input');inp.type='file';inp.accept='image/*,.pdf,.doc,.docx';inp.multiple=true;
   inp.onchange=function(){
     if(inp.files.length){
       if(!Array.isArray(S.matRecEntry.topFields[field]))S.matRecEntry.topFields[field]=[];
+      var pending=inp.files.length;
+      showToast('Uploading '+pending+' file(s) to Drive...',false);
       for(var fi=0;fi<inp.files.length;fi++){
-        var url=URL.createObjectURL(inp.files[fi]);
-        S.matRecEntry.topFields[field].push({name:inp.files[fi].name,url:url});
+        (function(f){
+          uploadFileToDrive(f,function(err,result){
+            pending--;
+            if(!err&&result){
+              S.matRecEntry.topFields[field].push(result);
+            } else {
+              S.matRecEntry.topFields[field].push({name:f.name,url:'',error:err||'failed'});
+            }
+            if(pending<=0){render();showToast('Upload complete',false);}
+          });
+        })(inp.files[fi]);
       }
-      render();
     }
   };
   inp.click();
