@@ -98,8 +98,11 @@
 - **Already Received** = sum of recQty from MATERIAL REC RESPONSES where SAME PO + SAME Vendor + SAME Item AND **STATUS = ACTIVE ONLY**
 - **Outward Batch No:** Server-side auto-increment, only assigned when REC QTY > 0
   - Clear recQty → batch no clears
-  - Re-entering → re-numbers ALL rows sequentially (no gaps)
+  - Re-entering → re-numbers ALL rows sequentially (no gaps) — **ADD mode only**
   - Server reads max from col AD and increments
+  - **CRITICAL FIX (numeric, not string):** Previously the value was built by STRING-CONCATENATING the DROPDOWN B1 prefix with the previous saved value (e.g. `obPrefix + existingValue`). Since B1 itself could already be a big number, and the "increment" regex just grabbed trailing digits, repeated saves caused **exponential digit growth** — real bug seen: value ballooned to a 20+ digit garbage number, and all rows in one batch got the SAME huge number instead of sequential ones.
+  - **Fix:** Outward Batch No is now always a **pure Number** (not a string). DROPDOWN B1 is parsed with `parseFloat` as the starting base. The max-so-far is found by numeric comparison (`parseFloat` on column AD), not by regex string matching. Result: clean sequential integers (e.g. 21, 22, 23...), no runaway growth.
+  - **EDIT MODE — FIXED FIELDS:** Both **New Unique No** and **Outward Batch No** are LOADED ONCE from the sheet (via `getMatRecForEditAI`) when a MAT-REC number is selected for edit, and are NEVER reassigned/recalculated afterward — even if REC QTY / Cancel QTY is changed on that row during editing. The recQty/cancelQty change handler explicitly skips the outward-batch-reassignment block when `S.matRecEntry.editMode` is true. Only in ADD (new entry) mode does changing REC QTY trigger live-recalculation of Outward Batch No across all rows.
 
 ### Validation
 - Only rows with REC QTY > 0 or Cancel QTY > 0 get saved
