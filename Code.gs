@@ -546,9 +546,8 @@ function getMatRecForEditAI(matRecNo) {
   var rows = [];
   for (var i = 1; i < data.length; i++) {
     var rowMatRec = String(data[i][34] || '').trim();
-    var rowStatus = String(data[i][33] || '').trim().toUpperCase();
     var rowRecQty = String(data[i][19] || '').trim();
-    if (rowMatRec === matRecNo && rowStatus === 'ACTIVE' && rowRecQty !== '') {
+    if (rowMatRec === matRecNo && rowRecQty !== '') {
       rows.push({
         rowIndex: i + 1,
         timestamp: fmtValueAI(data[i][0]),

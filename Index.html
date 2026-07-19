@@ -924,8 +924,7 @@ function getUniqueMatRecNos(){
   var nos={};
   S.matRecResp.forEach(function(r){
     var mrn=String(r.matRecNo||'').trim();
-    var status=String(r.status||'').trim().toUpperCase();
-    if(mrn&&status==='ACTIVE') nos[mrn]=true;
+    if(mrn) nos[mrn]=true;
   });
   return Object.keys(nos).sort().reverse();
 }
