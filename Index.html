@@ -381,6 +381,20 @@ function trashIcon(){return '<svg width="14" height="14" viewBox="0 0 24 24" fil
 
 function isDateColumn(key){ return key==='timestamp'||key==='dueDate'||key==='invoiceDate'||key==='dated'||key==='dueOn'; }
 
+// Format number as Indian currency: 1,00,000 (no rupee symbol, just comma formatting)
+function formatIndianCurrency(num){
+  if(num===0)return '0';
+  var isNeg=num<0;if(isNeg)num=-num;
+  var str=Math.round(num).toString();
+  var last3=str.substring(str.length-3);
+  var rest=str.substring(0,str.length-3);
+  if(rest.length>0){
+    rest=rest.replace(/\B(?=(\d{2})+(?!\d))/g,',');
+    return (isNeg?'-':'')+rest+','+last3;
+  }
+  return (isNeg?'-':'')+last3;
+}
+
 function parseDT(v){
   if(v==null)return null;
   var s=String(v).trim();if(!s)return null;
@@ -790,6 +804,20 @@ function renderPoRecTable(){
       // If value starts with http, show as "Click Here" link
       if(v&&(v.startsWith('http://')||v.startsWith('https://'))){
         return '<td><a class="click-link" href="'+esc(v)+'" target="_blank">Click Here</a></td>';
+      }
+      // STATUS column: ACTIVE = green badge
+      if(c.key==='status'&&v){
+        var isActive=v.trim().toUpperCase()==='ACTIVE';
+        if(isActive) return '<td><span style="background:#E5F5EA;color:#2E7D46;font-weight:600;font-size:10px;padding:3px 8px;border-radius:20px;display:inline-block;">\u25CF ACTIVE</span></td>';
+        return '<td><span style="background:#FBEAE9;color:#C4291C;font-weight:600;font-size:10px;padding:3px 8px;border-radius:20px;display:inline-block;">'+esc(v)+'</span></td>';
+      }
+      // Indian currency format for amount columns
+      if((c.key==='rate'||c.key==='amount'||c.key==='total'||c.key==='gst'||c.key==='grandTotal')&&v){
+        var num=parseFloat(v);
+        if(!isNaN(num)){
+          var formatted=formatIndianCurrency(num);
+          return '<td style="font-family:\'JetBrains Mono\',monospace;font-size:11.5px;text-align:right;">'+formatted+'</td>';
+        }
       }
       if(c.pill&&v) return '<td><span class="code-pill">'+esc(v)+'</span></td>';
       if(c.mono) return '<td style="font-family:\'JetBrains Mono\',monospace;font-size:11.5px;">'+esc(v)+'</td>';
