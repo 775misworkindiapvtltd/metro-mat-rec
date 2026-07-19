@@ -139,6 +139,10 @@
   - Col AG (33) = PEND QTY PDF LINK (pending)
   - Col AJ (36) = OVERALL PDF LINK
 - **No false "PDF saved" toast** before submit
+- **FIXED (root cause of "PDF nahi aaya" bug):** PDF generation used to run as 3 separate background `google.script.run` calls per PDF (punched/pending/overall), each with silently-swallowed `.catch(function(e){})` — so any failure (folder ID missing, HTML→PDF render issue, no matching row found for linking) produced ZERO visible error, just missing links in AF/AG/AJ.
+- **Fix:** Single synchronous server function `generateAndLinkPdfsAI(payload)` now does ALL of: build PDF HTML (table-based, not CSS grid — grid/flex is unreliable in Apps Script's HTML→PDF renderer) → save all 3 PDFs to Drive → find matching MAT-REC rows by AI column → write links to AF/AG/AJ in one pass → return `{status, links, errors, updatedRows}` to client.
+- Client shows a toast for: success (which PDFs were made), partial errors (`PDF issue: <type>: <message>`), total failure, or "no matching rows for punched/pending/overall" — nothing fails silently anymore.
+- Local `S.matRecResp` state is also patched with the new links immediately after generation, so the list table's REC QTY PDF / PEND QTY PDF / Overall PDF columns update without needing a page refresh.
 
 ---
 
