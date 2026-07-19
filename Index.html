@@ -1161,7 +1161,7 @@ function renderMatRecAdd(){
 
   // Card 4: QUANTITY SUMMARY
   var qtyCard='<div class="mat-card"><div class="mat-card-head"><span class="card-icon">\uD83D\uDCE6</span> QUANTITY SUMMARY</div><div class="mat-card-body">'+
-    '<div class="mat-top-field"><label>Invoice Quantity</label><input type="number" data-mattop="invQty" value="'+esc(T.invQty)+'" placeholder="0" step="any" inputmode="decimal" autocomplete="off"></div>'+
+    '<div class="mat-top-field"><label>Invoice Quantity</label><input type="number" data-mattop="invQty" value="'+esc(T.invQty)+'" placeholder="0" step="any" min="0" inputmode="decimal" autocomplete="off"></div>'+
     '<div class="mat-top-field"><label>Pending Quantity (Total)</label><input type="number" class="cell-ro" data-mattop="pendingQtyTop" value="'+esc(T.pendingQtyTop)+'" placeholder="Auto" readonly tabindex="-1"></div>'+
   '</div></div>';
 
@@ -1217,7 +1217,7 @@ function renderMatRecAdd(){
           return '<td><input class="cell-ro'+(c.num?' num':'')+'" type="'+(c.num?'number':'text')+'" data-matfield="'+c.k+'" data-mati="'+i+'" value="'+esc(v)+'" title="'+esc(v)+'" readonly tabindex="-1" '+(c.num?'step="any"':'')+' autocomplete="off"></td>';
         }
         var tp=c.num?'number':'text';var cls=c.num?'num':'';
-        return '<td><input class="'+cls+'" type="'+tp+'" data-matfield="'+c.k+'" data-mati="'+i+'" value="'+esc(v)+'" '+(c.num?'step="any" inputmode="decimal"':'')+' autocomplete="off" style="'+errStyle+'"></td>';
+        return '<td><input class="'+cls+'" type="'+tp+'" data-matfield="'+c.k+'" data-mati="'+i+'" value="'+esc(v)+'" '+(c.num?'step="any" min="0" inputmode="decimal"':'')+' autocomplete="off" style="'+errStyle+'"></td>';
       }).join('')+'</tr>';
     }).join('');
 
@@ -1261,6 +1261,12 @@ async function submitMatRec(){
   validRows.forEach(function(r){
     mandatoryFields.forEach(function(f){
       if(!r[f])hasError=true;
+    });
+    // Block negative numbers
+    var numFields=['recQty','cancelQty','invoiceRate','grossWeight'];
+    numFields.forEach(function(f){
+      var v=parseFloat(r[f]);
+      if(!isNaN(v)&&v<0){hasError=true;r[f]='';}
     });
   });
   if(hasError){
