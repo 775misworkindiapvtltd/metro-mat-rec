@@ -595,7 +595,7 @@ function renderDataTable(){
   var pageRows=rows.slice(si,si+ps);
   var visCols=MAT_REC_COLS.filter(function(c){return !st.hidden.has(c.key);});
 
-  var hasActiveFilters=Object.values(st.filters).some(function(v){return !!v;});
+  var hasActiveFilters=Object.values(st.filters).some(function(v){return !!v;})||Object.keys(st.dateFilters||{}).length>0||!!S.globalSearch;
 
   // S.No column
   var snoW=60;
@@ -645,7 +645,7 @@ function renderDataTable(){
   return '<div class="dt-toolbar">'+
     '<div class="count">'+total+' of '+totalUnfiltered+' rows'+(hasActiveFilters?' (filtered)':'')+'</div>'+
     '<button class="btn btn-ghost" data-action="dt-refresh" style="padding:7px 14px;">'+(S.syncing?'\u27F3 Refreshing\u2026':'\u27F3 Refresh')+'</button>'+
-    (hasActiveFilters?'<button class="btn btn-ghost" data-action="dt-reset-filters" style="padding:7px 14px;color:var(--danger);border-color:var(--danger);">\u2715 Reset Filters</button>':'')+
+    '<button class="btn btn-ghost" data-action="dt-reset-filters" style="padding:7px 14px;'+(hasActiveFilters?'color:var(--danger);border-color:var(--danger);':'opacity:0.4;cursor:default;')+'">\u2715 Reset Filters</button>'+
     '<input type="text" data-action="globalsearch" placeholder="\uD83D\uDD0D Search all columns\u2026" value="'+esc(S.globalSearch||'')+'" style="padding:6px 12px;border:1.5px solid var(--line);border-radius:4px;font-size:12px;width:200px;background:var(--surface);color:var(--ink);">'+
     '<div class="dt-colmenu-wrap">'+
       '<button class="btn btn-ghost" data-action="togglecolmenu" style="padding:7px 14px;">Columns \u25BE</button>'+
@@ -730,7 +730,7 @@ function renderPoRecTable(){
   var pageRows=rows.slice(si,si+ps);
   var visCols=PO_REC_COLS.filter(function(c){return !st.hidden.has(c.key);});
 
-  var hasActiveFilters=Object.values(st.filters).some(function(v){return !!v;});
+  var hasActiveFilters=Object.values(st.filters).some(function(v){return !!v;})||Object.keys(st.dateFilters||{}).length>0||!!S.globalSearchPo;
 
   var snoW=60;
   var snoTh='<th class="sno-col" style="width:'+snoW+'px;min-width:'+snoW+'px;max-width:'+snoW+'px;"><div class="th-inner"><div class="th-row"><span class="th-label no-sort">S.No</span></div></div></th>';
@@ -779,7 +779,7 @@ function renderPoRecTable(){
   return '<div class="dt-toolbar">'+
     '<div class="count">'+total+' of '+totalUnfiltered+' rows'+(hasActiveFilters?' \u2014 filtered':'')+'</div>'+
     '<button class="btn btn-ghost" data-action="po-refresh" style="padding:7px 14px;">'+(S.syncing?'\u27F3 Refreshing\u2026':'\u27F3 Refresh')+'</button>'+
-    (hasActiveFilters?'<button class="btn btn-ghost" data-action="po-reset-filters" style="padding:7px 14px;color:var(--danger);border-color:var(--danger);">\u2715 Reset Filters</button>':'')+
+    '<button class="btn btn-ghost" data-action="po-reset-filters" style="padding:7px 14px;'+(hasActiveFilters?'color:var(--danger);border-color:var(--danger);':'opacity:0.4;cursor:default;')+'">\u2715 Reset Filters</button>'+
     '<input type="text" data-action="poglobalsearch" placeholder="\uD83D\uDD0D Search all columns\u2026" value="'+esc(S.globalSearchPo||'')+'" style="padding:6px 12px;border:1.5px solid var(--line);border-radius:4px;font-size:12px;width:200px;background:var(--surface);color:var(--ink);">'+
     '<div class="dt-colmenu-wrap">'+
       '<button class="btn btn-ghost" data-action="potogglecolmenu" style="padding:7px 14px;">Columns \u25BE</button>'+
