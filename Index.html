@@ -553,6 +553,8 @@ async function loadColWidthsFromServer(){
     if(matW&&matW.widths)S.dt.widths=matW.widths;
     var poW=await runServer('loadUserSettingsAI',{page:'poRecView'});
     if(poW&&poW.widths)S.dtPo.widths=poW.widths;
+    var entW=await runServer('loadUserSettingsAI',{page:'matRecEntry'});
+    if(entW&&entW.widths)S.entryWidths=entW.widths;
   }catch(e){}
 }
 
@@ -1015,23 +1017,23 @@ function renderMatRecAdd(){
   var tableHtml='';
   if(hasRows){
     var tblCols=[
-      {k:'changeBrand',label:'Change Brand',w:100,type:'branddd'},
-      {k:'brand',label:'Brand',w:90,ro:true},
-      {k:'salesOrderId',label:'Sales Order ID',w:110,ro:true},
-      {k:'itemName',label:'Item Name',w:200,ro:true},
-      {k:'pendingQty',label:'Pending QTY',w:90,num:true,ro:true},
-      {k:'recQty',label:'REC QTY',w:80,num:true},
-      {k:'cancelQty',label:'Cancel QTY',w:90,num:true},
-      {k:'poRate',label:'PO Rate',w:80,num:true,ro:true},
-      {k:'size',label:'Size',w:70,ro:true},
-      {k:'unit',label:'Unit',w:60,ro:true},
-      {k:'invoiceRate',label:'Invoice Rate',w:95,num:true},
-      {k:'inwardBatchNo',label:'Inward Batch No',w:120},
-      {k:'grossWeight',label:'Gross Weight',w:100,num:true},
-      {k:'remarks',label:'Remarks',w:150},
-      {k:'newUniqueNo',label:'New Unique No',w:120,ro:true},
-      {k:'outwardBatchNo',label:'Outward Batch No',w:120,ro:true},
-      {k:'matRecImage',label:'Mat Rec Image',w:110,type:'upload'}
+      {k:'changeBrand',label:'Change Brand',w:110,type:'branddd'},
+      {k:'brand',label:'Brand',w:100,ro:true},
+      {k:'salesOrderId',label:'Sales Order ID',w:130,ro:true},
+      {k:'itemName',label:'Item Name',w:250,ro:true},
+      {k:'pendingQty',label:'Pending QTY',w:100,num:true,ro:true},
+      {k:'recQty',label:'REC QTY',w:90,num:true},
+      {k:'cancelQty',label:'Cancel QTY',w:100,num:true},
+      {k:'poRate',label:'PO Rate',w:90,num:true,ro:true},
+      {k:'size',label:'Size',w:80,ro:true},
+      {k:'unit',label:'Unit',w:70,ro:true},
+      {k:'invoiceRate',label:'Invoice Rate',w:110,num:true},
+      {k:'inwardBatchNo',label:'Inward Batch No',w:140},
+      {k:'grossWeight',label:'Gross Weight',w:110,num:true},
+      {k:'remarks',label:'Remarks',w:180},
+      {k:'newUniqueNo',label:'New Unique No',w:140,ro:true},
+      {k:'outwardBatchNo',label:'Outward Batch No',w:140,ro:true},
+      {k:'matRecImage',label:'Mat Rec Image',w:120,type:'upload'}
     ];
 
     var hdr='<th class="blk-a" style="width:28px;min-width:28px;">#</th>'+tblCols.map(function(c){var w=S.entryWidths[c.k]||c.w;return '<th class="blk-a" style="width:'+w+'px;min-width:'+w+'px;max-width:'+w+'px;">'+esc(c.label)+'<div class="eresize" data-ecol="'+c.k+'"></div></th>';}).join('');
@@ -1538,7 +1540,7 @@ document.addEventListener('mousemove',function(e){
   if(th){th.style.width=nw+'px';th.style.minWidth=nw+'px';th.style.maxWidth=nw+'px';}
 });
 document.addEventListener('mouseup',function(e){
-  if(eResizeCtx){var nw=Math.max(30,Math.round(eResizeCtx.startW+(e.clientX-eResizeCtx.startX)));S.entryWidths[eResizeCtx.col]=nw;eResizeCtx=null;return;}
+  if(eResizeCtx){var nw=Math.max(30,Math.round(eResizeCtx.startW+(e.clientX-eResizeCtx.startX)));S.entryWidths[eResizeCtx.col]=nw;saveColWidthsToServer('matRecEntry',S.entryWidths);eResizeCtx=null;return;}
   if(!resizeCtx)return;
   var finalW=Math.max(60,Math.round(resizeCtx.startW+(e.clientX-resizeCtx.startX)));
   if(resizeCtx.isPo){S.dtPo.widths[resizeCtx.c]=finalW;saveColWidthsToServer('poRecView',S.dtPo.widths);}
