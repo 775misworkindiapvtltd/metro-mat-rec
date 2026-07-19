@@ -508,6 +508,7 @@ async function doLogin(id,pw){
     render(); // re-render login page WITH green toast visible
     // Wait 800ms so user sees the toast, then navigate
     await new Promise(function(r){setTimeout(r,800);});
+    S.toast=null; // CLEAR toast before navigating
     if(S.user.matRecView||S.user.matRecAdd) S.page='matRecView';
     else if(S.user.poReceived) S.page='poRecView';
     else S.page='matRecView';
