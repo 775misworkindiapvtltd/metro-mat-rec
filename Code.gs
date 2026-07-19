@@ -113,9 +113,11 @@ function pickAI(r, names) {
 
 function mapUserAI(r) {
   return {
-    name: r['NAME'] || '', id: String(r['ID'] || '').trim(), password: String(r['PASSWORD'] || '').trim(),
-    matRecView: isYesAI(pickAI(r, ['MATERIAL RECEIVED VIEW ENTRY'])),
-    matRecAdd:  isYesAI(pickAI(r, ['MATERIAL ENTRY ADD'])),
+    name: String(pickAI(r, ['NAME', 'Name', 'name']) || '').trim(),
+    id: String(pickAI(r, ['ID', 'Id', 'id', 'USER ID', 'User ID', 'LOGIN ID']) || '').trim(),
+    password: String(pickAI(r, ['PASSWORD', 'Password', 'password', 'PASS', 'Pass']) || '').trim(),
+    matRecView: isYesAI(pickAI(r, ['MATERIAL RECEIVED VIEW ENTRY', 'MATERIAL RECEIVED VIEW'])),
+    matRecAdd:  isYesAI(pickAI(r, ['MATERIAL ENTRY ADD', 'MATERIAL ADD'])),
     poReceived: isYesAI(pickAI(r, ['PO RECEIVED', 'PO RECIEVED']))
   };
 }
@@ -215,11 +217,15 @@ function mapPoReceivedAI(rows) {
 
 function getUserPermissionsAI(id) {
   var usersRaw = sheetToObjectsAI(SHEETS_AI.login);
-  var match = usersRaw.find(function (r) { return String(r['ID'] || '').trim().toLowerCase() === String(id || '').trim().toLowerCase(); });
+  var inputId = String(id || '').trim().toLowerCase();
+  var match = null;
+  for (var i = 0; i < usersRaw.length; i++) {
+    var u = mapUserAI(usersRaw[i]);
+    if (u.id.toLowerCase() === inputId) { match = u; break; }
+  }
   if (!match) return null;
-  var u = mapUserAI(match);
-  delete u.password;
-  return u;
+  delete match.password;
+  return match;
 }
 
 function getLoginDataAI() {
@@ -236,24 +242,27 @@ function validateLoginAI(credentials) {
   var usersRaw = sheetToObjectsAI(SHEETS_AI.login);
   var inputId = String(credentials.id).trim().toLowerCase();
   var inputPw = String(credentials.password).trim();
-  var match = usersRaw.find(function (r) {
-    var sheetId = String(pickAI(r, ['ID', 'Id', 'id', 'USER ID', 'User ID']) || '').trim();
-    var sheetPw = String(pickAI(r, ['PASSWORD', 'Password', 'password', 'PASS', 'Pass']) || '').trim();
-    return sheetId.toLowerCase() === inputId && sheetPw === inputPw;
-  });
-  if (!match) {
+  
+  var matchedUser = null;
+  for (var i = 0; i < usersRaw.length; i++) {
+    var u = mapUserAI(usersRaw[i]);
+    if (u.id.toLowerCase() === inputId && u.password === inputPw) {
+      matchedUser = u;
+      break;
+    }
+  }
+  
+  if (!matchedUser) {
     return { success: false, error: 'Invalid user ID or password.' };
   }
-  var u = mapUserAI(match);
-  delete u.password; // NEVER send password to client
-  return { success: true, user: u };
+  delete matchedUser.password; // NEVER send password to client
+  return { success: true, user: matchedUser };
 }
 
 function getBootstrapDataAI(perms) {
   var result = {
     matRecResp: [],
     poReceived: [],
-    users: [],
     missingSheets: [],
     debugInfo: []
   };
@@ -278,16 +287,11 @@ function getBootstrapDataAI(perms) {
     } catch(e) { result.missingSheets.push(SHEETS_AI.poReceived + ' ERR: ' + e.message); }
   }
 
-  try {
-    result.users = sheetToObjectsAI(SHEETS_AI.login).map(mapUserAI);
-  } catch(e) { result.missingSheets.push(SHEETS_AI.login + ' ERR: ' + e.message); }
-
   // FINAL SAFETY NET: JSON round-trip strips any non-serializable values
-  // (Date objects, undefined, etc.) that would make google.script.run return NULL.
   try {
     return JSON.parse(JSON.stringify(result));
   } catch (e) {
-    return { matRecResp: [], poReceived: [], users: [], missingSheets: ['SERIALIZE ERR: ' + e.message], debugInfo: [] };
+    return { matRecResp: [], poReceived: [], missingSheets: ['SERIALIZE ERR: ' + e.message], debugInfo: [] };
   }
 }
 
@@ -303,6 +307,28 @@ function testPoAI() {
   Logger.log(out);
   if (mapped.length) Logger.log('First PO row: ' + JSON.stringify(mapped[0]));
   return out;
+}
+
+// TEST LOGIN — run from editor to verify login works
+// Shows what headers are being read and what values are matched
+function testLoginAI() {
+  var usersRaw = sheetToObjectsAI(SHEETS_AI.login);
+  Logger.log('LOGIN PAGE rows found: ' + usersRaw.length);
+  if (usersRaw.length === 0) {
+    Logger.log('ERROR: No rows in LOGIN PAGE sheet!');
+    return;
+  }
+  Logger.log('First row keys: ' + JSON.stringify(Object.keys(usersRaw[0])));
+  // Show first 3 users (ID only, no password in log)
+  for (var i = 0; i < Math.min(3, usersRaw.length); i++) {
+    var u = mapUserAI(usersRaw[i]);
+    Logger.log('User ' + (i+1) + ': id=[' + u.id + '] name=[' + u.name + '] pw_length=' + u.password.length + ' matRecView=' + u.matRecView + ' matRecAdd=' + u.matRecAdd + ' poReceived=' + u.poReceived);
+  }
+  // Test actual validation
+  var firstUser = mapUserAI(usersRaw[0]);
+  var testResult = validateLoginAI({id: firstUser.id, password: firstUser.password});
+  Logger.log('Test login result for "' + firstUser.id + '": ' + JSON.stringify(testResult));
+  return 'Found ' + usersRaw.length + ' users. First user id: ' + firstUser.id + ', login test: ' + (testResult.success ? 'PASS' : 'FAIL: ' + testResult.error);
 }
 
 // TEST getBootstrapDataAI exactly as frontend calls it.
