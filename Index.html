@@ -410,7 +410,7 @@ var S = {
   matRecResp:[],
   poReceived:[],
   dropdownBrands:[],
-  obPrefix:'',
+  obPrefix:'', obBase:1,
   toast:null, loginError:'',
   dt:dtState(),
   dtPo:dtState(),
@@ -589,7 +589,7 @@ async function doLogin(id,pw){
     var perms={matRecView:S.user.matRecView,matRecAdd:S.user.matRecAdd,matRecEdit:S.user.matRecEdit,poReceived:S.user.poReceived};
     var data=await runServer('getBootstrapDataAI',perms);
     if(data){ S.matRecResp=data.matRecResp||[]; S.poReceived=data.poReceived||[]; }
-    try{ var dd=await runServer('getDropdownDataAI'); if(dd&&dd.brands) S.dropdownBrands=dd.brands; if(dd&&dd.obPrefix) S.obPrefix=dd.obPrefix; }catch(e){}
+    try{ var dd=await runServer('getDropdownDataAI'); if(dd&&dd.brands) S.dropdownBrands=dd.brands; if(dd&&dd.obPrefix) S.obPrefix=dd.obPrefix; if(dd&&dd.obBase) S.obBase=dd.obBase; }catch(e){}
     await loadColWidthsFromServer();
     S.syncing=false;
     console.log('[LOGIN] Data loaded: matRecResp='+S.matRecResp.length+', poReceived='+S.poReceived.length+', brands='+S.dropdownBrands.length);
@@ -1036,13 +1036,16 @@ function getAlreadyReceived(poNo,vendorName,itemName){
   return total;
 }
 
-/* Get next outward batch number from DROPDOWN sheet B2 prefix + auto-increment */
+/* Get next outward batch number (PURE NUMBER) — starts from DROPDOWN B1 (numeric),
+   increments from whatever is the max already-saved numeric value. This is only a
+   CLIENT-SIDE LIVE PREVIEW; the server (saveMatRecEntriesAI) re-computes the final
+   authoritative number at save-time to avoid race conditions with other users. */
 function getNextOutwardBatchNo(){
-  var maxNum=0;
+  var base=parseFloat(S.obBase)||1;
+  var maxNum=base-1;
   S.matRecResp.forEach(function(r){
-    var ob=String(r.outwardBatchNo||'');
-    var m=ob.match(/(\d+)$/);
-    if(m){var n=parseInt(m[1],10);if(n>maxNum)maxNum=n;}
+    var n=parseFloat(r.outwardBatchNo);
+    if(!isNaN(n)&&n>maxNum)maxNum=n;
   });
   return maxNum+1;
 }
@@ -1745,28 +1748,31 @@ document.addEventListener('input',function(e){
       S.matRecEntry.rows[i][f]=el.value;
       if(f==='recQty'||f==='cancelQty'){
         recalcPendingQty(i);
-        // Re-assign ALL outward batch numbers (always fresh, incremental)
-        var nextBatch=getNextOutwardBatchNo();
-        var batchIdx=0;
-        S.matRecEntry.rows.forEach(function(r,ri){
-          if(parseFloat(r.recQty)>0){
-            r.outwardBatchNo=(S.obPrefix||'')+String(nextBatch+batchIdx);
-            batchIdx++;
-          } else {
-            r.outwardBatchNo='';
-          }
-        });
+        // EDIT MODE: New Unique No & Outward Batch No stay FIXED (as loaded) — never re-assigned.
+        if(!S.matRecEntry.editMode){
+          // Re-assign ALL outward batch numbers (always fresh, incremental) — ADD mode only
+          var nextBatch=getNextOutwardBatchNo();
+          var batchIdx=0;
+          S.matRecEntry.rows.forEach(function(r,ri){
+            if(parseFloat(r.recQty)>0){
+              r.outwardBatchNo=nextBatch+batchIdx; // pure number, no string prefix concatenation
+              batchIdx++;
+            } else {
+              r.outwardBatchNo='';
+            }
+          });
+          // Update ALL outward batch displays
+          S.matRecEntry.rows.forEach(function(r,ri){
+            var obEl=document.querySelector('input[data-matfield="outwardBatchNo"][data-mati="'+ri+'"]');
+            if(obEl)obEl.value=r.outwardBatchNo;
+          });
+        }
         // Update pendingQtyTop display
         var topEl=document.querySelector('[data-mattop="pendingQtyTop"]');
         if(topEl)topEl.value=S.matRecEntry.topFields.pendingQtyTop;
         // Update this row pending display
         var pEl=document.querySelector('input[data-matfield="pendingQty"][data-mati="'+i+'"]');
         if(pEl)pEl.value=S.matRecEntry.rows[i].pendingQty;
-        // Update ALL outward batch displays
-        S.matRecEntry.rows.forEach(function(r,ri){
-          var obEl=document.querySelector('input[data-matfield="outwardBatchNo"][data-mati="'+ri+'"]');
-          if(obEl)obEl.value=r.outwardBatchNo;
-        });
       }
     }
     return;

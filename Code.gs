@@ -424,10 +424,12 @@ function saveMatRecEntriesAI(payload) {
     } catch(e) { /* fallback to 00001 */ }
     } // end else (new entry)
 
-    // Calculate outward batch numbers server-side (for speed)
-    // Read starting series from DROPDOWN sheet B1
-    var obPrefix = '';
-    var outwardBase = 1;
+    // Calculate outward batch numbers server-side (as a pure NUMBER, never a
+    // string-concatenated prefix+digits — that caused exponential digit growth,
+    // e.g. "1098474901" + "0884749..." producing garbage 19-digit values).
+    // Series starts from DROPDOWN sheet B1 (parsed as a number) and continues
+    // (increments) from whatever numeric value is already the MAX in column AD.
+    var obBase = 1;
     try {
       var ddSh2 = ss.getSheetByName('DROPDOWN');
       if (!ddSh2) {
@@ -439,34 +441,38 @@ function saveMatRecEntriesAI(payload) {
         }
       }
       if (ddSh2) {
-        var b1Val = String(ddSh2.getRange('B1').getValue() || '').trim();
-        if (b1Val) obPrefix = b1Val;
+        var b1Raw = ddSh2.getRange('B1').getValue();
+        var b1Num = parseFloat(String(b1Raw == null ? '' : b1Raw).replace(/[^0-9.]/g, ''));
+        if (!isNaN(b1Num) && b1Num > 0) obBase = b1Num;
       }
-    } catch(e3) {}
-    // Find max existing outward batch number and increment
+    } catch (e3) {}
+    // Find max existing outward batch NUMBER already saved (numeric parse, NOT regex-on-string)
+    var outwardBase = obBase;
     try {
       var lastRow2 = sh.getLastRow();
       if (lastRow2 > 1) {
         var obCol = 30; // AD = outward batch no
         var obData = sh.getRange(2, obCol, lastRow2 - 1, 1).getValues();
         obData.forEach(function(row) {
-          var val = String(row[0] || '');
-          var m2 = val.match(/(\d+)$/);
-          if (m2) { var n2 = parseInt(m2[1], 10); if (n2 >= outwardBase) outwardBase = n2 + 1; }
+          var n2 = parseFloat(row[0]);
+          if (!isNaN(n2) && n2 >= outwardBase) outwardBase = n2 + 1;
         });
       }
     } catch(e2) {}
     var obIdx = 0;
 
     var dataRows = rows.map(function (r) {
-      // Assign outward batch number server-side
-      // If row already has a valid outward batch (edit mode), keep it
+      // Assign outward batch number server-side — ALWAYS as a NUMBER (never a
+      // string-concatenated prefix). If row already has a valid outward batch
+      // (edit mode: FIXED, unchanged from what was loaded), keep it exactly.
       var outBatch = '';
-      var existingOB = String(r.outwardBatchNo || '');
-      if (existingOB && existingOB.indexOf('__AUTO__') !== 0) {
-        outBatch = existingOB;
+      var existingOB = r.outwardBatchNo;
+      var existingObStr = String(existingOB == null ? '' : existingOB);
+      if (existingObStr && existingObStr.indexOf('__AUTO__') !== 0) {
+        var existingObNum = parseFloat(existingObStr);
+        outBatch = !isNaN(existingObNum) ? existingObNum : existingObStr;
       } else if (parseFloat(r.recQty) > 0) {
-        outBatch = obPrefix + String(outwardBase + obIdx);
+        outBatch = outwardBase + obIdx; // pure Number
         obIdx++;
       }
       // matRecImage: convert array of {url} to comma-separated plain URLs
@@ -515,7 +521,7 @@ function saveMatRecEntriesAI(payload) {
 
 function getDropdownDataAI() {
   var ss = getSSAI();
-  var result = { brands: [], obPrefix: '' };
+  var result = { brands: [], obPrefix: '', obBase: 1 };
   try {
     var sh = ss.getSheetByName('DROPDOWN');
     if (!sh) {
@@ -529,7 +535,10 @@ function getDropdownDataAI() {
     if (sh) {
       var data = sh.getRange('A2:A').getValues();
       result.brands = data.filter(function(r){return r[0]!=='';}).map(function(r){return String(r[0]).trim();});
-      result.obPrefix = String(sh.getRange('B1').getValue() || '').trim();
+      var b1Raw = sh.getRange('B1').getValue();
+      result.obPrefix = String(b1Raw == null ? '' : b1Raw).trim(); // kept for backward compat / display
+      var b1Num = parseFloat(String(b1Raw == null ? '' : b1Raw).replace(/[^0-9.]/g, ''));
+      result.obBase = (!isNaN(b1Num) && b1Num > 0) ? b1Num : 1;
     }
   } catch(e) { result.brands = []; }
   return result;
