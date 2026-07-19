@@ -406,6 +406,28 @@ function saveMatRecEntriesAI(payload) {
   }
 }
 
+function getDropdownDataAI() {
+  var ss = getSSAI();
+  var result = { brands: [] };
+  // Try to read DROPDOWN sheet, column A for brands
+  try {
+    var sh = ss.getSheetByName('DROPDOWN');
+    if (!sh) {
+      var allSheets = ss.getSheets().map(function(s){return s.getName();});
+      for (var i = 0; i < allSheets.length; i++) {
+        if (allSheets[i].toUpperCase().replace(/\s+/g,'') === 'DROPDOWN') {
+          sh = ss.getSheetByName(allSheets[i]); break;
+        }
+      }
+    }
+    if (sh) {
+      var data = sh.getRange('A2:A').getValues();
+      result.brands = data.filter(function(r){return r[0]!=='';}).map(function(r){return String(r[0]).trim();});
+    }
+  } catch(e) { result.brands = []; }
+  return result;
+}
+
 function debugPoHeadersAI() {
   var ss = getSSAI();
   if (!ss) { Logger.log('ERROR: Could not open spreadsheet! Check SPREADSHEET_ID_AI at top of file.'); return; }
