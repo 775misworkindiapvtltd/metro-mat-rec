@@ -413,7 +413,8 @@ var S = {
   globalSearch:'',
   globalSearchPo:'',
   darkMode:false, fontSize:100,
-  lastMatRecNo:''
+  lastMatRecNo:'',
+  pendingUploads:0
 };
 
 try{ S.darkMode=localStorage.getItem('matrec_dark_mode')==='true'; if(S.darkMode)document.documentElement.classList.add('dark'); }catch(e){}
@@ -495,13 +496,16 @@ function hideConfirmPopup(){var el=document.getElementById('confirmPopup');if(el
 
 /* Upload file to Google Drive (reads as base64, sends to server) */
 function uploadFileToDrive(file,callback){
+  S.pendingUploads++;render();
   var reader=new FileReader();
   reader.onload=function(){
     var base64=reader.result.split(',')[1];
     runServer('uploadFileToDriveAI',{data:base64,fileName:file.name,mimeType:file.type||'application/octet-stream'}).then(function(res){
+      S.pendingUploads--;
       if(res&&res.status==='ok'){callback(null,{name:file.name,url:res.url});}
       else{callback(res?res.message:'Upload failed');}
-    }).catch(function(err){callback(err.message);});
+      if(S.pendingUploads<=0){S.pendingUploads=0;render();}
+    }).catch(function(err){S.pendingUploads--;if(S.pendingUploads<=0)S.pendingUploads=0;render();callback(err.message);});
   };
   reader.readAsDataURL(file);
 }
@@ -1125,7 +1129,7 @@ function renderMatRecAdd(){
         '<button class="btn btn-ghost" data-action="pdf-punched" style="padding:7px 14px;font-size:11px;">\uD83D\uDCC4 PDF (Punched)</button>'+
         '<button class="btn btn-ghost" data-action="pdf-pending" style="padding:7px 14px;font-size:11px;">\uD83D\uDCC4 PDF (Pending)</button>'+
         '<button class="btn btn-ghost" data-action="pdf-overall" style="padding:7px 14px;font-size:11px;">\uD83D\uDCC4 PDF (Overall)</button>'+
-        '<button class="btn btn-gold" data-action="submit-matrec" '+(S.saving?'disabled':'')+'>'+(S.saving?'<span class="spinner" style="width:14px;height:14px;border-width:2px;"></span> Saving\u2026':'\u2714 Save Entry')+'</button>'+
+        '<button class="btn btn-gold" data-action="submit-matrec" '+(S.saving||S.pendingUploads>0?'disabled':'')+'>'+(S.saving?'<span class="spinner" style="width:14px;height:14px;border-width:2px;"></span> Saving\u2026':(S.pendingUploads>0?'\u23F3 Uploading ('+S.pendingUploads+')':'\u2714 Save Entry'))+'</button>'+
       '</div>'+
     '</div>';
   } else {
@@ -1188,12 +1192,24 @@ async function submitMatRec(){
     S.saving=false;hideSavingOverlay();
     if(result.status!=='ok'){showToast('Save failed: '+(result.message||'unknown'),true);return;}
     var ts=fmtNow();
+    var savedMatRecNo=result.matRecNo||'';
+    S.lastMatRecNo=savedMatRecNo;
+    
+    // Auto-generate all 3 PDFs and save links to sheet
+    var punchedRows=validRows.filter(function(r){return parseFloat(r.recQty)>0||parseFloat(r.cancelQty)>0;});
+    var pendingRows=E.rows.filter(function(r){return parseFloat(r.pendingQty)>0;});
+    var allRows=E.rows;
+    
+    // Generate PDFs in background (don't wait)
+    if(punchedRows.length) savePdfAndLink('Material Received - Punched',T,punchedRows,'punched',savedMatRecNo);
+    if(pendingRows.length) savePdfAndLink('Material Received - Pending',T,pendingRows,'pending',savedMatRecNo);
+    if(allRows.length) savePdfAndLink('Material Received - Overall',T,allRows,'overall',savedMatRecNo);
+    
     validRows.forEach(function(r){
       S.matRecResp.push(Object.assign({},T,r,{timestamp:ts,loginName:S.user.name||S.user.id}));
     });
     S.matRecEntry=null;S.page='matRecView';
-    S.lastMatRecNo=result.matRecNo||'';
-    showToast('Saved '+result.saved+' material received row(s). ('+S.lastMatRecNo+')',false);
+    showToast('Saved '+result.saved+' row(s). ('+savedMatRecNo+') PDFs generating...',false);
   }catch(err){S.saving=false;hideSavingOverlay();showToast('Save failed: '+err.message,true);}
 }
 
@@ -1223,11 +1239,22 @@ function generatePdfOverall(){
   openPdfPopup('Material Received - Complete Entry',T,rows,'overall');
 }
 
-function openPdfPopup(title,topFields,rows,type){
+/* Auto-save PDF to Drive and link to sheet (runs in background) */
+function savePdfAndLink(title,topFields,rows,type,matRecNo){
+  var html=buildPdfHtml(title,topFields,rows,type);
+  var fileName=type+'_'+String(topFields.poNo||'PO').replace(/[^a-zA-Z0-9]/g,'_')+'_'+matRecNo;
+  runServer('savePdfToDriveAI',{htmlContent:html,fileName:fileName}).then(function(res){
+    if(res&&res.status==='ok'&&res.url){
+      runServer('savePdfLinkToSheetAI',{pdfUrl:res.url,matRecNo:matRecNo,type:type}).catch(function(e){});
+    }
+  }).catch(function(e){});
+}
+
+/* Build PDF HTML content (reusable) */
+function buildPdfHtml(title,topFields,rows,type){
   var T=topFields;
   var isPunched=(type==='punched');
   var isOverall=(type==='overall');
-
   var cols;
   if(isPunched){
     cols=[{k:'brand',l:'Brand'},{k:'salesOrderId',l:'Sales Order ID'},{k:'itemName',l:'Item Name'},{k:'recQty',l:'REC QTY'},{k:'cancelQty',l:'Cancel QTY'},{k:'poRate',l:'PO Rate'},{k:'size',l:'Size'},{k:'unit',l:'Unit'},{k:'invoiceRate',l:'Invoice Rate'},{k:'inwardBatchNo',l:'Inward Batch No'},{k:'grossWeight',l:'Gross Wt'},{k:'remarks',l:'Remarks'},{k:'outwardBatchNo',l:'Outward Batch'}];
@@ -1236,71 +1263,26 @@ function openPdfPopup(title,topFields,rows,type){
   } else {
     cols=[{k:'brand',l:'Brand'},{k:'salesOrderId',l:'Sales Order ID'},{k:'itemName',l:'Item Name'},{k:'pendingQty',l:'Pending QTY'},{k:'poRate',l:'PO Rate'},{k:'size',l:'Size'},{k:'unit',l:'Unit'},{k:'newUniqueNo',l:'New Unique No'}];
   }
-
   var tblHead='<tr>'+cols.map(function(c){return '<th style="border:1px solid #ddd;padding:6px 8px;background:#1a2130;color:#fff;font-size:10px;text-transform:uppercase;">'+c.l+'</th>';}).join('')+'</tr>';
-  var tblBody=rows.map(function(r,i){
-    return '<tr style="'+(i%2===0?'':'background:#f9f9f6;')+'">'+cols.map(function(c){return '<td style="border:1px solid #ddd;padding:5px 8px;font-size:11px;">'+esc(r[c.k]||'')+'</td>';}).join('')+'</tr>';
-  }).join('');
+  var tblBody=rows.map(function(r,i){return '<tr style="'+(i%2===0?'':'background:#f9f9f6;')+'">'+cols.map(function(c){return '<td style="border:1px solid #ddd;padding:5px 8px;font-size:11px;">'+esc(r[c.k]||'')+'</td>';}).join('')+'</tr>';}).join('');
+  return '<!DOCTYPE html><html><head><title>'+esc(title)+'</title><style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;padding:20px;color:#333;}.header{text-align:center;margin-bottom:20px;border-bottom:2px solid #b4862b;padding-bottom:12px;}.header h1{font-size:16px;color:#1a1712;margin-bottom:4px;}.header h2{font-size:12px;color:#666;font-weight:normal;}.info-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;font-size:11px;}.info-item label{font-weight:700;color:#666;font-size:9px;text-transform:uppercase;display:block;margin-bottom:2px;}.info-item span{color:#1a1712;font-weight:500;}table{width:100%;border-collapse:collapse;margin-top:10px;}.footer{margin-top:20px;text-align:right;font-size:10px;color:#888;}</style></head><body><div class="header"><h1>'+esc(title)+'</h1><h2>Generated: '+fmtNow()+'</h2></div><div class="info-grid"><div class="info-item"><label>Vendor</label><span>'+esc(T.vendorName)+'</span></div><div class="info-item"><label>PO Number</label><span>'+esc(T.poNo)+'</span></div><div class="info-item"><label>Invoice No</label><span>'+esc(T.invoiceNumber)+'</span></div><div class="info-item"><label>Invoice Date</label><span>'+esc(T.invoiceDate)+'</span></div><div class="info-item"><label>Due Date</label><span>'+esc(T.dueDate)+'</span></div><div class="info-item"><label>Bundle</label><span>'+esc(T.bandel)+'</span></div><div class="info-item"><label>Invoice QTY</label><span>'+esc(T.invQty)+'</span></div><div class="info-item"><label>Pending QTY</label><span>'+esc(T.pendingQtyTop)+'</span></div><div class="info-item"><label>Login</label><span>'+esc(S.user?S.user.name:'')+'</span></div></div><table>'+tblHead+tblBody+'</table><div class="footer">Rows: '+rows.length+' | '+esc(title)+'</div></body></html>';
+}
 
-  var html='<!DOCTYPE html><html><head><title>'+esc(title)+'</title>'+
-    '<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;padding:20px;color:#333;}'+
-    '.header{text-align:center;margin-bottom:20px;border-bottom:2px solid #b4862b;padding-bottom:12px;}'+
-    '.header h1{font-size:16px;color:#1a1712;margin-bottom:4px;}.header h2{font-size:12px;color:#666;font-weight:normal;}'+
-    '.info-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;font-size:11px;}'+
-    '.info-item{}.info-item label{font-weight:700;color:#666;font-size:9px;text-transform:uppercase;display:block;margin-bottom:2px;}'+
-    '.info-item span{color:#1a1712;font-weight:500;}'+
-    'table{width:100%;border-collapse:collapse;margin-top:10px;}'+
-    '.footer{margin-top:20px;text-align:right;font-size:10px;color:#888;}'+
-    '.print-btn{position:fixed;top:10px;right:10px;padding:8px 16px;background:#b4862b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600;font-size:12px;}'+
-    '.print-btn:hover{background:#8c6720;}'+
-    '.save-status{position:fixed;top:10px;left:10px;padding:6px 12px;background:#e5f5ea;color:#2e7d46;border-radius:4px;font-size:11px;font-weight:600;}'+
-    '@media print{.print-btn,.save-status{display:none !important;}}'+
-    '</style></head><body>'+
-    '<button class="print-btn" onclick="window.print()">Print / Download PDF</button>'+
-    '<div class="save-status" id="pdfSaveStatus">Saving to Drive...</div>'+
-    '<div class="header"><h1>'+esc(title)+'</h1><h2>Generated: '+fmtNow()+'</h2></div>'+
-    '<div class="info-grid">'+
-      '<div class="info-item"><label>Vendor</label><span>'+esc(T.vendorName)+'</span></div>'+
-      '<div class="info-item"><label>PO Number</label><span>'+esc(T.poNo)+'</span></div>'+
-      '<div class="info-item"><label>Invoice No</label><span>'+esc(T.invoiceNumber)+'</span></div>'+
-      '<div class="info-item"><label>Invoice Date</label><span>'+esc(T.invoiceDate)+'</span></div>'+
-      '<div class="info-item"><label>Due Date</label><span>'+esc(T.dueDate)+'</span></div>'+
-      '<div class="info-item"><label>Bundle</label><span>'+esc(T.bandel)+'</span></div>'+
-      '<div class="info-item"><label>Invoice QTY</label><span>'+esc(T.invQty)+'</span></div>'+
-      '<div class="info-item"><label>Pending QTY Total</label><span>'+esc(T.pendingQtyTop)+'</span></div>'+
-      '<div class="info-item"><label>Login</label><span>'+esc(S.user?S.user.name:'')+'</span></div>'+
-    '</div>'+
-    '<table>'+tblHead+tblBody+'</table>'+
-    '<div class="footer">Rows: '+rows.length+' | '+esc(title)+'</div>'+
-    '</body></html>';
-
-  // Open popup for preview
+function openPdfPopup(title,topFields,rows,type){
+  var html=buildPdfHtml(title,topFields,rows,type);
+  // Add print button to HTML for popup
+  var printHtml=html.replace('</body>','<button style="position:fixed;top:10px;right:10px;padding:8px 16px;background:#b4862b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600;font-size:12px;" onclick="window.print()">Print / Download PDF</button></body>');
   var win=window.open('','_blank','width=900,height=700');
-  if(win){win.document.write(html);win.document.close();}
+  if(win){win.document.write(printHtml);win.document.close();}
   else{showToast('Popup blocked! Allow popups for this site.',true);}
-
-  // Save PDF to Google Drive in background
-  var fileName=type+'_'+String(T.poNo||'PO').replace(/[^a-zA-Z0-9]/g,'_')+'_'+fmtNow().replace(/[: ]/g,'_');
+  // Also save to Drive
+  var fileName=type+'_'+String(topFields.poNo||'PO').replace(/[^a-zA-Z0-9]/g,'_')+'_'+fmtNow().replace(/[: ]/g,'_');
   runServer('savePdfToDriveAI',{htmlContent:html,fileName:fileName}).then(function(res){
     if(res&&res.status==='ok'){
       showToast('PDF saved to Drive',false);
-      // Save link to sheet
-      runServer('savePdfLinkToSheetAI',{pdfUrl:res.url,poNo:T.poNo,matRecNo:S.lastMatRecNo||'',type:type}).catch(function(e){});
-      // Update popup status
-      if(win&&!win.closed){
-        var statusEl=win.document.getElementById('pdfSaveStatus');
-        if(statusEl){statusEl.textContent='\u2713 Saved to Drive';statusEl.style.background='#e5f5ea';}
-      }
-    } else {
-      showToast('PDF save failed: '+(res?res.message:'unknown'),true);
-      if(win&&!win.closed){
-        var statusEl=win.document.getElementById('pdfSaveStatus');
-        if(statusEl){statusEl.textContent='\u2717 Save failed';statusEl.style.background='#fbeae9';statusEl.style.color='#c4291c';}
-      }
-    }
-  }).catch(function(err){
-    showToast('PDF save error: '+err.message,true);
-  });
+      runServer('savePdfLinkToSheetAI',{pdfUrl:res.url,matRecNo:S.lastMatRecNo||'',type:type}).catch(function(e){});
+    }else{showToast('PDF save failed: '+(res?res.message:''),true);}
+  }).catch(function(e){showToast('PDF error: '+e.message,true);});
 }
 
 

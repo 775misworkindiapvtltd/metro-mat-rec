@@ -403,24 +403,43 @@ function saveMatRecEntriesAI(payload) {
     } catch(e) { /* fallback to 00001 */ }
 
     var dataRows = rows.map(function (r) {
+      // matRecImage: convert array of {url} to comma-separated plain URLs
+      var imgUrls = '';
+      if (Array.isArray(r.matRecImage)) {
+        imgUrls = r.matRecImage.filter(function(f){return f&&f.url;}).map(function(f){return f.url;}).join(',');
+      } else {
+        imgUrls = String(r.matRecImage||'');
+      }
+      // invoiceUpload/lrImage: convert to comma-separated URLs  
+      var invUploadUrls = '';
+      if (Array.isArray(top.invoiceUpload)) {
+        invUploadUrls = top.invoiceUpload.filter(function(f){return f&&f.url;}).map(function(f){return f.url;}).join(',');
+      } else { invUploadUrls = String(top.invoiceUpload||''); }
+      var lrImageUrls = '';
+      if (Array.isArray(top.lrImage)) {
+        lrImageUrls = top.lrImage.filter(function(f){return f&&f.url;}).map(function(f){return f.url;}).join(',');
+      } else { lrImageUrls = String(top.lrImage||''); }
+      
       return [
-        ts, top.poNo||'', top.invoiceUpload||'', top.vendorName||'', top.pendingQtyTop||'',
+        ts, top.poNo||'', invUploadUrls, top.vendorName||'', top.pendingQtyTop||'',
         top.invQty||'', top.dueDate||'', top.bandel||'', top.addressGst||'', top.ewayBill||'',
         top.lrBillVerified||'', top.invoiceNumber||'', top.invoiceDate||'', top.ewayBillImage||'',
         r.changeBrand||'', r.brand||'', r.salesOrderId||'', r.itemName||'',
         r.pendingQty||'', r.recQty||'', r.cancelQty||'', r.poRate||'',
         r.size||'', r.unit||'', r.invoiceRate||'', r.inwardBatchNo||'',
         r.grossWeight||'', r.remarks||'', r.newUniqueNo||'', r.outwardBatchNo||'',
-        r.matRecImage||'', loginName,
-        '',          // Col 33 (AG) = REC QTY PDF LINK (filled later)
+        imgUrls,
+        '',          // Col 32 (AF) = REC QTY PDF LINK
+        '',          // Col 33 (AG) = PEND QTY PDF LINK
         'ACTIVE',    // Col 34 (AH) = STATUS
         matRecNo,    // Col 35 (AI) = MAT-REC-XXXXX
-        ''           // Col 36 (AJ) = OVERALL PDF LINK (filled later)
+        '',          // Col 36 (AJ) = OVERALL PDF LINK
+        loginName    // Col 37 (AK) = LOGIN NAME
       ];
     });
 
-    sh.getRange(sh.getLastRow() + 1, 1, dataRows.length, 36).setValues(dataRows);
-    return { status: 'ok', saved: dataRows.length, matRecNo: matRecNo, startRow: sh.getLastRow() - dataRows.length + 1 };
+    sh.getRange(sh.getLastRow() + 1, 1, dataRows.length, 37).setValues(dataRows);
+    return { status: 'ok', saved: dataRows.length, matRecNo: matRecNo };
   } catch (err) {
     return { status: 'error', message: err.message };
   } finally {
@@ -542,8 +561,8 @@ function savePdfToDriveAI(payload) {
   }
 }
 
-// Save PDF link to MAT REC RESPONSES at specific columns
-// type='punched' → col 33 (AG), type='pending' → col 33 (AG), type='overall' → col 36 (AJ)
+// Save PDF link to MAT REC RESPONSES
+// type='punched' → col 32 (AF), type='pending' → col 33 (AG), type='overall' → col 36 (AJ)
 function savePdfLinkToSheetAI(payload) {
   try {
     if (!payload || !payload.pdfUrl) {
@@ -553,11 +572,9 @@ function savePdfLinkToSheetAI(payload) {
     var sh = ss.getSheetByName(SHEETS_AI.matRecResp);
     if (!sh) return { status: 'error', message: 'Sheet not found' };
     
-    // Determine column based on PDF type
-    var pdfCol = 33; // AG = REC QTY PDF (punched)
-    if (payload.type === 'pending') pdfCol = 33; // AG also (pending replaces if needed)
-    if (payload.type === 'overall') pdfCol = 36; // AJ = OVERALL PDF
-    if (payload.type === 'punched') pdfCol = 33; // AG
+    var pdfCol = 32; // AF = REC QTY PDF (punched)
+    if (payload.type === 'pending') pdfCol = 33; // AG
+    if (payload.type === 'overall') pdfCol = 36; // AJ
     
     // Find rows with matching MAT-REC number and set PDF link
     var matRecNo = payload.matRecNo || '';
