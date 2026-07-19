@@ -736,26 +736,27 @@ function linksHtmlAI_(val) {
 
 // FULL row-level column set — SAME columns for punched/pending/overall PDFs
 // (matches every row-level column shown in the Material Rec list table)
+// 'w' = column width % (narrow numeric-ish cols shrunk, Remarks widened)
 var PDF_FULL_COLS_AI_ = [
-  ['changeBrand', 'Change Brand'], ['brand', 'Brand'], ['salesOrderId', 'Sales Order ID'],
-  ['itemName', 'Item Name'], ['pendingQty', 'Pending QTY'], ['recQty', 'REC QTY'],
-  ['cancelQty', 'Cancel QTY'], ['poRate', 'PO Rate'], ['size', 'Size'], ['unit', 'Unit'],
-  ['invoiceRate', 'Invoice Rate'], ['inwardBatchNo', 'Inward Batch No'], ['grossWeight', 'Gross Wt'],
-  ['remarks', 'Remarks'], ['newUniqueNo', 'New Unique No'], ['outwardBatchNo', 'Outward Batch'],
-  ['matRecImage', 'Image']
+  ['changeBrand', 'Change Brand', 7], ['brand', 'Brand', 7], ['salesOrderId', 'Sales Order ID', 7],
+  ['itemName', 'Item Name', 7], ['pendingQty', 'Pending QTY', 4], ['recQty', 'REC QTY', 4],
+  ['cancelQty', 'Cancel QTY', 4], ['poRate', 'PO Rate', 4], ['size', 'Size', 4], ['unit', 'Unit', 4],
+  ['invoiceRate', 'Invoice Rate', 4], ['inwardBatchNo', 'Inward Batch No', 4], ['grossWeight', 'Gross Wt', 4],
+  ['remarks', 'Remarks', 15], ['newUniqueNo', 'New Unique No', 7], ['outwardBatchNo', 'Outward Batch', 7],
+  ['matRecImage', 'Image', 7]
 ];
 
 function buildPdfHtmlAI(title, topFields, rows, type) {
   var T = topFields || {};
   var cols = PDF_FULL_COLS_AI_;
-  var tblHead = '<tr>' + cols.map(function(c){return '<th style="border:1px solid #ddd;padding:5px 6px;background:#1a2130;color:#fff;font-size:9px;text-transform:uppercase;white-space:nowrap;">'+escAI_(c[1])+'</th>';}).join('') + '</tr>';
+  var tblHead = '<tr>' + cols.map(function(c){return '<th style="width:'+c[2]+'%;border:1px solid #ddd;padding:4px 3px;background:#1a2130;color:#fff;font-size:8px;font-weight:700;text-transform:uppercase;white-space:normal;word-wrap:break-word;overflow-wrap:break-word;">'+escAI_(c[1])+'</th>';}).join('') + '</tr>';
   var tblBody = rows.map(function(r,i){
     return '<tr style="'+(i%2===0?'':'background:#f9f9f6;')+'">' + cols.map(function(c){
       if (c[0] === 'matRecImage') {
         var lk = linksHtmlAI_(r.matRecImage);
-        return '<td style="border:1px solid #ddd;padding:4px 6px;font-size:9px;white-space:nowrap;">' + (lk || '&mdash;') + '</td>';
+        return '<td style="width:'+c[2]+'%;border:1px solid #ddd;padding:3px 3px;font-size:8px;word-wrap:break-word;">' + (lk || '&mdash;') + '</td>';
       }
-      return '<td style="border:1px solid #ddd;padding:4px 6px;font-size:9px;">'+escAI_(r[c[0]])+'</td>';
+      return '<td style="width:'+c[2]+'%;border:1px solid #ddd;padding:3px 3px;font-size:8px;word-wrap:break-word;overflow-wrap:break-word;">'+escAI_(r[c[0]])+'</td>';
     }).join('') + '</tr>';
   }).join('');
   var now = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd-MMM-yyyy HH:mm:ss');
@@ -773,7 +774,7 @@ function buildPdfHtmlAI(title, topFields, rows, type) {
       return '<td style="padding:3px 6px;width:16.6%;vertical-align:top;"><label style="font-weight:700;color:#666;font-size:8px;text-transform:uppercase;display:block;">'+row[idx]+'</label><span style="color:#1a1712;font-weight:500;">'+(row[idx+1]||'&mdash;')+'</span></td>';
     }).join('') + '</tr>';
   }).join('') + '</table>';
-  return '<!DOCTYPE html><html><head><title>'+escAI_(title)+'</title><style>*{margin:0;padding:0;box-sizing:border-box;}@page{size:A4 landscape;margin:10mm;}body{font-family:Arial,sans-serif;padding:14px;color:#333;}.header{text-align:center;margin-bottom:14px;border-bottom:2px solid #b4862b;padding-bottom:10px;}.header h1{font-size:15px;color:#1a1712;margin-bottom:4px;}.header h2{font-size:11px;color:#666;font-weight:normal;}table{width:100%;border-collapse:collapse;}.footer{margin-top:14px;text-align:right;font-size:9px;color:#888;}</style></head><body><div class="header"><h1>'+escAI_(title)+'</h1><h2>Generated: '+now+'</h2></div>'+infoHtml+'<table>'+tblHead+tblBody+'</table><div class="footer">Rows: '+rows.length+' | '+escAI_(title)+'</div></body></html>';
+  return '<!DOCTYPE html><html><head><title>'+escAI_(title)+'</title><style>*{margin:0;padding:0;box-sizing:border-box;}@page{size:A4 landscape;margin:10mm 0.1in;}body{font-family:Arial,sans-serif;padding:8px 0.1in;color:#333;}.header{text-align:center;margin-bottom:14px;border-bottom:2px solid #b4862b;padding-bottom:10px;}.header h1{font-size:15px;color:#1a1712;margin-bottom:4px;}.header h2{font-size:11px;color:#666;font-weight:normal;}table{width:100%;border-collapse:collapse;table-layout:fixed;}.footer{margin-top:14px;text-align:right;font-size:9px;color:#888;}</style></head><body><div class="header"><h1>'+escAI_(title)+'</h1><h2>Generated: '+now+'</h2></div>'+infoHtml+'<table>'+tblHead+tblBody+'</table><div class="footer">Rows: '+rows.length+' | '+escAI_(title)+'</div></body></html>';
 }
 
 // ===== GENERATE ALL 3 PDFs + SAVE TO DRIVE + LINK TO SHEET — ONE SYNCHRONOUS CALL =====

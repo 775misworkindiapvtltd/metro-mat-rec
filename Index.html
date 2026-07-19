@@ -1403,28 +1403,30 @@ function linksHtml_(val){
   }).join(', ');
 }
 
-/* FULL row-level column set — SAME columns for punched/pending/overall PDFs */
+/* FULL row-level column set — SAME columns for punched/pending/overall PDFs.
+   'w' = column width % (narrow numeric-ish cols shrunk, Remarks widened). */
 var PDF_FULL_COLS_=[
-  {k:'changeBrand',l:'Change Brand'},{k:'brand',l:'Brand'},{k:'salesOrderId',l:'Sales Order ID'},
-  {k:'itemName',l:'Item Name'},{k:'pendingQty',l:'Pending QTY'},{k:'recQty',l:'REC QTY'},
-  {k:'cancelQty',l:'Cancel QTY'},{k:'poRate',l:'PO Rate'},{k:'size',l:'Size'},{k:'unit',l:'Unit'},
-  {k:'invoiceRate',l:'Invoice Rate'},{k:'inwardBatchNo',l:'Inward Batch No'},{k:'grossWeight',l:'Gross Wt'},
-  {k:'remarks',l:'Remarks'},{k:'newUniqueNo',l:'New Unique No'},{k:'outwardBatchNo',l:'Outward Batch'},
-  {k:'matRecImage',l:'Image'}
+  {k:'changeBrand',l:'Change Brand',w:7},{k:'brand',l:'Brand',w:7},{k:'salesOrderId',l:'Sales Order ID',w:7},
+  {k:'itemName',l:'Item Name',w:7},{k:'pendingQty',l:'Pending QTY',w:4},{k:'recQty',l:'REC QTY',w:4},
+  {k:'cancelQty',l:'Cancel QTY',w:4},{k:'poRate',l:'PO Rate',w:4},{k:'size',l:'Size',w:4},{k:'unit',l:'Unit',w:4},
+  {k:'invoiceRate',l:'Invoice Rate',w:4},{k:'inwardBatchNo',l:'Inward Batch No',w:4},{k:'grossWeight',l:'Gross Wt',w:4},
+  {k:'remarks',l:'Remarks',w:15},{k:'newUniqueNo',l:'New Unique No',w:7},{k:'outwardBatchNo',l:'Outward Batch',w:7},
+  {k:'matRecImage',l:'Image',w:7}
 ];
 
-/* Build PDF HTML content (reusable) — landscape, all columns, image "Click Here" links */
+/* Build PDF HTML content (reusable) — landscape, all columns, image "Click Here" links,
+   narrow numeric columns with wrapped bold headers, wider Remarks, tight 0.1in L/R margin. */
 function buildPdfHtml(title,topFields,rows,type){
   var T=topFields;
   var cols=PDF_FULL_COLS_;
-  var tblHead='<tr>'+cols.map(function(c){return '<th style="border:1px solid #ddd;padding:5px 6px;background:#1a2130;color:#fff;font-size:9px;text-transform:uppercase;white-space:nowrap;">'+c.l+'</th>';}).join('')+'</tr>';
+  var tblHead='<tr>'+cols.map(function(c){return '<th style="width:'+c.w+'%;border:1px solid #ddd;padding:4px 3px;background:#1a2130;color:#fff;font-size:8px;font-weight:700;text-transform:uppercase;white-space:normal;word-wrap:break-word;overflow-wrap:break-word;">'+c.l+'</th>';}).join('')+'</tr>';
   var tblBody=rows.map(function(r,i){
     return '<tr style="'+(i%2===0?'':'background:#f9f9f6;')+'">'+cols.map(function(c){
       if(c.k==='matRecImage'){
         var lk=linksHtml_(r.matRecImage);
-        return '<td style="border:1px solid #ddd;padding:4px 6px;font-size:9px;white-space:nowrap;">'+(lk||'&mdash;')+'</td>';
+        return '<td style="width:'+c.w+'%;border:1px solid #ddd;padding:3px 3px;font-size:8px;word-wrap:break-word;">'+(lk||'&mdash;')+'</td>';
       }
-      return '<td style="border:1px solid #ddd;padding:4px 6px;font-size:9px;">'+esc(r[c.k]||'')+'</td>';
+      return '<td style="width:'+c.w+'%;border:1px solid #ddd;padding:3px 3px;font-size:8px;word-wrap:break-word;overflow-wrap:break-word;">'+esc(r[c.k]||'')+'</td>';
     }).join('')+'</tr>';
   }).join('');
   var invoiceUploadLk=linksHtml_(T.invoiceUpload)||'&mdash;';
@@ -1441,7 +1443,7 @@ function buildPdfHtml(title,topFields,rows,type){
       return '<td style="padding:3px 6px;width:16.6%;vertical-align:top;"><label style="font-weight:700;color:#666;font-size:8px;text-transform:uppercase;display:block;">'+(row[idx]||'')+'</label><span style="color:#1a1712;font-weight:500;">'+(row[idx+1]||'&mdash;')+'</span></td>';
     }).join('')+'</tr>';
   }).join('')+'</table>';
-  return '<!DOCTYPE html><html><head><title>'+esc(title)+'</title><style>*{margin:0;padding:0;box-sizing:border-box;}@page{size:A4 landscape;margin:10mm;}@media print{@page{size:A4 landscape;}}body{font-family:Arial,sans-serif;padding:14px;color:#333;}.header{text-align:center;margin-bottom:14px;border-bottom:2px solid #b4862b;padding-bottom:10px;}.header h1{font-size:15px;color:#1a1712;margin-bottom:4px;}.header h2{font-size:11px;color:#666;font-weight:normal;}table{width:100%;border-collapse:collapse;}.footer{margin-top:14px;text-align:right;font-size:9px;color:#888;}</style></head><body><div class="header"><h1>'+esc(title)+'</h1><h2>Generated: '+fmtNow()+'</h2></div>'+infoHtml+'<table>'+tblHead+tblBody+'</table><div class="footer">Rows: '+rows.length+' | '+esc(title)+'</div></body></html>';
+  return '<!DOCTYPE html><html><head><title>'+esc(title)+'</title><style>*{margin:0;padding:0;box-sizing:border-box;}@page{size:A4 landscape;margin:10mm 0.1in;}@media print{@page{size:A4 landscape;margin:10mm 0.1in;}}body{font-family:Arial,sans-serif;padding:8px 0.1in;color:#333;}.header{text-align:center;margin-bottom:14px;border-bottom:2px solid #b4862b;padding-bottom:10px;}.header h1{font-size:15px;color:#1a1712;margin-bottom:4px;}.header h2{font-size:11px;color:#666;font-weight:normal;}table{width:100%;border-collapse:collapse;table-layout:fixed;}.footer{margin-top:14px;text-align:right;font-size:9px;color:#888;}</style></head><body><div class="header"><h1>'+esc(title)+'</h1><h2>Generated: '+fmtNow()+'</h2></div>'+infoHtml+'<table>'+tblHead+tblBody+'</table><div class="footer">Rows: '+rows.length+' | '+esc(title)+'</div></body></html>';
 }
 
 function openPdfPopup(title,topFields,rows,type){
