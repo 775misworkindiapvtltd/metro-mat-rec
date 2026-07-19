@@ -229,3 +229,13 @@
 - Sheet AI1 header = "MAT REC NO" (for edit dropdown to work)
 - User communicates in Hindi/Hinglish
 - Implement directly and push — don't ask for confirmation
+
+
+
+---
+
+## 🚫 NEGATIVE NUMBERS BLOCKED
+- All numeric fields in Material Rec form have `min="0"` (HTML validation)
+- Fields: Invoice Quantity, REC QTY, Cancel QTY, Invoice Rate, Gross Weight
+- Save-time validation: rejects negative values (clears to empty + error)
+- No negative data can be entered or saved in any number field
