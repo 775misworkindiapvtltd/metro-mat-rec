@@ -259,6 +259,8 @@ table.entry select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 
 .dropzone-sm{border:1.5px dashed var(--line);border-radius:4px;padding:4px 6px;text-align:center;cursor:pointer;font-size:9px;color:var(--muted);transition:all .12s;}
 .dropzone-sm:hover{border-color:var(--accent);color:var(--accent-dark);}
 .dropzone-sm .dz-file-sm{font-size:9px;color:var(--accent-dark);font-weight:600;word-break:break-all;}
+.file-del{color:var(--danger);cursor:pointer;font-weight:700;font-size:14px;margin-left:2px;opacity:.6;transition:opacity .12s;}
+.file-del:hover{opacity:1;}
 
 .saving-overlay{position:fixed;inset:0;background:rgba(12,16,23,.35);z-index:200;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(1px);}
 .saving-overlay .saving-box{background:var(--surface);border-radius:12px;padding:24px 36px;box-shadow:0 20px 50px rgba(0,0,0,.25);display:flex;align-items:center;gap:14px;font-size:14px;font-weight:600;color:var(--ink);}
@@ -414,7 +416,9 @@ var S = {
   globalSearchPo:'',
   darkMode:false, fontSize:100,
   lastMatRecNo:'',
-  pendingUploads:0
+  pendingUploads:0,
+  editMode:false,
+  editMatRecNo:''
 };
 
 try{ S.darkMode=localStorage.getItem('matrec_dark_mode')==='true'; if(S.darkMode)document.documentElement.classList.add('dark'); }catch(e){}
@@ -563,7 +567,7 @@ async function doLogin(id,pw){
     // Wait 800ms so user sees the toast, then navigate
     await new Promise(function(r){setTimeout(r,800);});
     S.toast=null; // CLEAR toast before navigating
-    if(S.user.matRecView||S.user.matRecAdd) S.page='matRecView';
+    if(S.user.matRecView||S.user.matRecAdd||S.user.matRecEdit) S.page='matRecView';
     else if(S.user.poReceived) S.page='poRecView';
     else S.page='matRecView';
     render();
@@ -638,7 +642,8 @@ function renderShell(inner){
   var breadcrumb='';
   if(S.page==='poRecView') topbarTitle='PO Received';
   else if(S.page==='matRecAdd'){
-    breadcrumb='<div class="breadcrumb"><a data-action="back-to-matview">\u2190 Back to List</a><span class="sep">/</span><span class="current">Material Received \u2014 New Entry</span></div>';
+    var editLabel=S.matRecEntry&&S.matRecEntry.editMode?'Material Received \u2014 Edit Entry':'Material Received \u2014 New Entry';
+    breadcrumb='<div class="breadcrumb"><a data-action="back-to-matview">\u2190 Back to List</a><span class="sep">/</span><span class="current">'+editLabel+'</span></div>';
   }
 
   var sidebarCls='sidebar'+(S.sidebarExpanded?' expanded':'');
@@ -647,7 +652,7 @@ function renderShell(inner){
     '<div class="'+sidebarCls+'" data-action="toggle-sidebar">'+
       '<div class="brand"><div class="brand-icon">MR</div></div>'+
       '<div class="nav">'+
-        ((S.user.matRecView||S.user.matRecAdd)?'<div class="nav-item '+(S.page==='matRecView'||S.page==='matRecAdd'?'active':'')+'" data-action="nav" data-page="matRecView">'+matIcon+'<span class="nav-label"><span class="short">Mat Rec</span><span class="full">Material Received</span></span></div>':'')+
+        ((S.user.matRecView||S.user.matRecAdd||S.user.matRecEdit)?'<div class="nav-item '+(S.page==='matRecView'||S.page==='matRecAdd'?'active':'')+'" data-action="nav" data-page="matRecView">'+matIcon+'<span class="nav-label"><span class="short">Mat Rec</span><span class="full">Material Received</span></span></div>':'')+
         (S.user.poReceived?'<div class="nav-item '+(S.page==='poRecView'?'active':'')+'" data-action="nav" data-page="poRecView">'+poIcon+'<span class="nav-label"><span class="short">PO Rec</span><span class="full">PO Received</span></span></div>':'')+
       '</div>'+
       '<div class="sidebar-foot"><div class="logout-btn" data-action="logout" title="Sign Out">'+logoutIcon+'</div></div>'+
@@ -764,6 +769,7 @@ function renderDataTable(){
       (S.colMenuOpen?'<div class="dt-colmenu"><div class="h">Show / Hide Columns</div>'+MAT_REC_COLS.map(function(c){return '<label><input type="checkbox" data-action="togglecol" data-col="'+c.key+'" '+(st.hidden.has(c.key)?'':'checked')+'> '+esc(c.label)+'</label>';}).join('')+'</div>':'')+
     '</div>'+
     (canAdd?'<button class="btn btn-gold" data-action="open-matrec-add" style="padding:7px 14px;">+ Add</button>':'')+
+    (S.user&&S.user.matRecEdit?'<button class="btn btn-ghost" data-action="open-matrec-edit" style="padding:7px 14px;">&#9998; Edit</button>':'')+
   '</div>'+
   '<div class="dt-table-wrap">'+
     '<div class="dt-scroll"><table class="dt"><thead><tr>'+hdr+'</tr></thead><tbody>'+bod+'</tbody></table></div>'+
@@ -894,11 +900,32 @@ function freshMatRecEntry(){
   return {
     topFields:{vendorName:'',poNo:'',invoiceNumber:'',invoiceDate:'',dueDate:'',bandel:'',invoiceUpload:[],lrImage:[],lrBillVerified:'',ewayBill:'',ewayBillImage:'',addressGst:'',invQty:'',pendingQtyTop:''},
     rows:Array.from({length:MAT_REC_MIN_ROWS},freshMatRecRow),
-    showErrors:false
+    showErrors:false,
+    editMode:false
   };
 }
 function openMatRecAdd(){S.matRecEntry=freshMatRecEntry();S.page='matRecAdd';render();}
-function closeMatRecAdd(){S.matRecEntry=null;S.page='matRecView';render();}
+function closeMatRecAdd(){S.matRecEntry=null;S.page='matRecView';S.editMode=false;S.editMatRecNo='';render();}
+
+function openMatRecEdit(){
+  S.matRecEntry=freshMatRecEntry();
+  S.matRecEntry.editMode=true;
+  S.matRecEntry.rows=[];
+  S.editMode=true;
+  S.editMatRecNo='';
+  S.page='matRecAdd';
+  render();
+}
+
+function getUniqueMatRecNos(){
+  var nos={};
+  S.matRecResp.forEach(function(r){
+    var mrn=String(r.matRecNo||'').trim();
+    var status=String(r.status||'').trim().toUpperCase();
+    if(mrn&&status==='ACTIVE') nos[mrn]=true;
+  });
+  return Object.keys(nos).sort().reverse();
+}
 
 function initMatRecDatePickers(){
   if(typeof flatpickr==='undefined')return;
@@ -1041,19 +1068,34 @@ function renderMatRecAdd(){
   var poList=getPOsForVendor(T.vendorName);
 
   // Card 1: PURCHASE DETAILS with typeable dropdowns
-  var purchaseCard='<div class="mat-card"><div class="mat-card-head"><span class="card-icon">\uD83D\uDED2</span> PURCHASE DETAILS</div><div class="mat-card-body">'+
-    '<div class="mat-top-field"><label>Vendor Name</label><div class="typeable-dd" id="dd-vendor"><input type="text" data-mattop="vendorName" data-ddtype="vendor" value="'+esc(T.vendorName)+'" placeholder="Type to search vendor..." autocomplete="off"><div class="dd-list" id="ddlist-vendor"></div></div></div>'+
-    '<div class="mat-top-field"><label>PO Number</label><div class="typeable-dd" id="dd-po"><input type="text" data-mattop="poNo" data-ddtype="po" value="'+esc(T.poNo)+'" placeholder="Type to search PO..." autocomplete="off"><div class="dd-list" id="ddlist-po"></div></div></div>'+
+  var editField='';
+  if(E.editMode){
+    editField='<div class="mat-top-field" style="min-width:200px;"><label>MAT REC NO</label><div class="typeable-dd" id="dd-matrecno"><input type="text" data-ddtype="matrecno" value="'+esc(S.editMatRecNo||'')+'" placeholder="Select MAT-REC number..." autocomplete="off"><div class="dd-list" id="ddlist-matrecno"></div></div></div>';
+  }
+
+  var vendorHtml,poHtml;
+  if(E.editMode){
+    vendorHtml='<div class="mat-top-field"><label>Vendor Name</label><input type="text" class="cell-ro" value="'+esc(T.vendorName)+'" readonly></div>';
+    poHtml='<div class="mat-top-field"><label>PO Number</label><input type="text" class="cell-ro" value="'+esc(T.poNo)+'" readonly></div>';
+  } else {
+    vendorHtml='<div class="mat-top-field"><label>Vendor Name</label><div class="typeable-dd" id="dd-vendor"><input type="text" data-mattop="vendorName" data-ddtype="vendor" value="'+esc(T.vendorName)+'" placeholder="Type to search vendor..." autocomplete="off"><div class="dd-list" id="ddlist-vendor"></div></div></div>';
+    poHtml='<div class="mat-top-field"><label>PO Number</label><div class="typeable-dd" id="dd-po"><input type="text" data-mattop="poNo" data-ddtype="po" value="'+esc(T.poNo)+'" placeholder="Type to search PO..." autocomplete="off"><div class="dd-list" id="ddlist-po"></div></div></div>';
+  }
+
+  var purchaseCard='<div class="mat-card"><div class="mat-card-head"><span class="card-icon">\uD83D\uDED2</span> PURCHASE DETAILS'+(E.editMode?' (EDIT MODE)':'')+'</div><div class="mat-card-body">'+
+    editField+
+    vendorHtml+
+    poHtml+
     '<div class="mat-top-field"><label>Invoice No</label><input type="text" data-mattop="invoiceNumber" value="'+esc(T.invoiceNumber)+'" placeholder="Invoice Number" autocomplete="off"></div>'+
     '<div class="mat-top-field"><label>Invoice Date</label><input type="text" data-mattop="invoiceDate" data-matdate="invoiceDate" value="'+esc(T.invoiceDate)+'" placeholder="DD-MMM-YYYY" autocomplete="off"></div>'+
     '<div class="mat-top-field"><label>Due Date</label><input type="text" data-mattop="dueDate" data-matdate="dueDate" value="'+esc(T.dueDate)+'" placeholder="DD-MMM-YYYY" autocomplete="off"></div>'+
     '<div class="mat-top-field"><label>Bundle</label><input type="text" data-mattop="bandel" value="'+esc(T.bandel)+'" placeholder="Bundle count" autocomplete="off"></div>'+
-    '<div class="dropzone" data-dropzone="invoiceUpload" id="dz-invoice"><div class="dz-icon">\uD83D\uDCC4</div><div class="dz-text">Invoice Upload (drag & drop)</div>'+(Array.isArray(T.invoiceUpload)&&T.invoiceUpload.length?'<div class="dz-file">'+T.invoiceUpload.map(function(f,fi){return '<a class="click-link" href="'+esc(f.url||'#')+'" target="_blank" style="margin-right:6px;">'+(fi+1)+'</a>';}).join('')+'</div>':'')+'</div>'+
+    '<div class="dropzone" data-dropzone="invoiceUpload" id="dz-invoice"><div class="dz-icon">\uD83D\uDCC4</div><div class="dz-text">Invoice Upload (drag & drop)</div>'+(Array.isArray(T.invoiceUpload)&&T.invoiceUpload.length?'<div class="dz-file">'+T.invoiceUpload.map(function(f,fi){return '<a class="click-link" href="'+esc(f.url||'#')+'" target="_blank" style="margin-right:4px;">'+(fi+1)+'</a><span class="file-del" data-delfield="invoiceUpload" data-delidx="'+fi+'" title="Remove">&times;</span>';}).join('')+'</div>':'')+'</div>'+
   '</div></div>';
 
   // Card 2: TRANSPORT & VERIFICATION
   var transportCard='<div class="mat-card"><div class="mat-card-head"><span class="card-icon">\uD83D\uDE9A</span> TRANSPORT & VERIFICATION</div><div class="mat-card-body">'+
-    '<div class="dropzone" data-dropzone="lrImage" id="dz-lr"><div class="dz-icon">\uD83D\uDDBC\uFE0F</div><div class="dz-text">LR Image (drag & drop)</div>'+(Array.isArray(T.lrImage)&&T.lrImage.length?'<div class="dz-file">'+T.lrImage.map(function(f,fi){return '<a class="click-link" href="'+esc(f.url||'#')+'" target="_blank" style="margin-right:6px;">'+(fi+1)+'</a>';}).join('')+'</div>':'')+'</div>'+
+    '<div class="dropzone" data-dropzone="lrImage" id="dz-lr"><div class="dz-icon">\uD83D\uDDBC\uFE0F</div><div class="dz-text">LR Image (drag & drop)</div>'+(Array.isArray(T.lrImage)&&T.lrImage.length?'<div class="dz-file">'+T.lrImage.map(function(f,fi){return '<a class="click-link" href="'+esc(f.url||'#')+'" target="_blank" style="margin-right:4px;">'+(fi+1)+'</a><span class="file-del" data-delfield="lrImage" data-delidx="'+fi+'" title="Remove">&times;</span>';}).join('')+'</div>':'')+'</div>'+
     '<div class="mat-top-field"><label>LR Verified</label><select data-mattop="lrBillVerified"><option value="">-- Select --</option><option value="Yes"'+(T.lrBillVerified==='Yes'?' selected':'')+'>Yes</option><option value="No"'+(T.lrBillVerified==='No'?' selected':'')+'>No</option><option value="Pending"'+(T.lrBillVerified==='Pending'?' selected':'')+'>Pending</option></select></div>'+
     '<div class="mat-top-field"><label>E-Way Verification</label><select data-mattop="ewayBill"><option value="">-- Select --</option><option value="Yes"'+(T.ewayBill==='Yes'?' selected':'')+'>Yes</option><option value="Not Applicable"'+(T.ewayBill==='Not Applicable'?' selected':'')+'>Not Applicable</option></select></div>'+
     '<div class="mat-top-field"><label>E-Way Image</label><input type="text" data-mattop="ewayBillImage" value="'+esc(T.ewayBillImage)+'" placeholder="E-Way image ref" autocomplete="off"></div>'+
@@ -1071,7 +1113,7 @@ function renderMatRecAdd(){
   '</div></div>';
 
   // Item rows table - only show when PO is selected and rows exist
-  var hasRows=E.rows.length>0&&E.topFields.poNo;
+  var hasRows=E.rows.length>0&&(E.topFields.poNo||E.editMode);
   var tableHtml='';
   if(hasRows){
     var tblCols=[
@@ -1112,7 +1154,7 @@ function renderMatRecAdd(){
         }
         if(c.type==='upload'){
           var files=Array.isArray(r[c.k])?r[c.k]:[];
-          var fileLinks=files.length?files.map(function(f,fi){return '<a class="click-link" href="'+esc(f.url||'#')+'" target="_blank">'+(fi+1)+'</a>';}).join(' '):'';
+          var fileLinks=files.length?files.map(function(f,fi){return '<a class="click-link" href="'+esc(f.url||'#')+'" target="_blank">'+(fi+1)+'</a><span class="file-del" data-delfield="row_'+i+'" data-delidx="'+fi+'" title="Remove">&times;</span>';}).join(' '):'';
           return '<td><div class="dropzone-sm" data-rowdz="'+i+'">\uD83D\uDCF7'+(fileLinks?' '+fileLinks:'')+'</div></td>';
         }
         if(c.type==='textarea'){
@@ -1139,7 +1181,7 @@ function renderMatRecAdd(){
       '</div>'+
     '</div>';
   } else {
-    tableHtml='<div class="empty-state" style="padding:30px;"><div class="big">Select a PO Number to load item rows</div>Choose a Vendor and PO Number above to auto-fill the items table.</div>';
+    tableHtml='<div class="empty-state" style="padding:30px;"><div class="big">'+(E.editMode?'Select a MAT-REC Number to load entry':'Select a PO Number to load item rows')+'</div>'+(E.editMode?'Choose a MAT-REC Number above to load existing entry for editing.':'Choose a Vendor and PO Number above to auto-fill the items table.')+'</div>';
   }
 
   return '<div class="mat-add-container">'+
@@ -1176,16 +1218,28 @@ async function submitMatRec(){
 
   S.saving=true;render();showSavingOverlay('Saving material entry\u2026');
   try{
+    // If edit mode, cancel old rows first
+    if(E.editMode && S.editMatRecNo){
+      try{
+        await runServer('cancelMatRecRowsAI', S.editMatRecNo);
+      }catch(e){}
+    }
+
     // Outward batch assigned server-side for speed (no pre-fetch needed)
-    var bIdx=0;
-    validRows.forEach(function(r){
-      if(parseFloat(r.recQty)>0){
-        r.outwardBatchNo='__AUTO__'+bIdx; // Server will replace with actual number
-        bIdx++;
-      } else {
-        r.outwardBatchNo='';
-      }
-    });
+    // In edit mode, keep existing outward batch numbers (don't use __AUTO__)
+    if(!E.editMode){
+      var bIdx=0;
+      validRows.forEach(function(r){
+        if(parseFloat(r.recQty)>0){
+          r.outwardBatchNo='__AUTO__'+bIdx;
+          bIdx++;
+        } else {
+          r.outwardBatchNo='';
+        }
+      });
+    }
+    // In edit mode, outwardBatchNo and newUniqueNo remain as loaded (unchanged)
+
     var result=await runServer('saveMatRecEntriesAI',{
       topFields:T,rows:validRows,loginId:S.user.id,loginName:S.user.name||S.user.id
     });
@@ -1206,10 +1260,20 @@ async function submitMatRec(){
     if(allRows.length) savePdfAndLink('Material Received - Overall',T,allRows,'overall',savedMatRecNo);
     
     validRows.forEach(function(r){
-      S.matRecResp.push(Object.assign({},T,r,{timestamp:ts,loginName:S.user.name||S.user.id}));
+      S.matRecResp.push(Object.assign({},T,r,{timestamp:ts,loginName:S.user.name||S.user.id,status:'ACTIVE',matRecNo:savedMatRecNo}));
     });
-    S.matRecEntry=null;S.page='matRecView';
-    showToast('Saved '+result.saved+' row(s). ('+savedMatRecNo+') PDFs generating...',false);
+
+    // If edit mode, mark old entries as CANCEL in local state too
+    if(E.editMode && S.editMatRecNo){
+      S.matRecResp.forEach(function(r){
+        if(String(r.matRecNo||'').trim()===S.editMatRecNo){
+          r.status='CANCEL';
+        }
+      });
+    }
+
+    S.matRecEntry=null;S.page='matRecView';S.editMode=false;S.editMatRecNo='';
+    showToast('Saved '+result.saved+' row(s). ('+savedMatRecNo+')'+(E.editMode?' [Edit complete]':' PDFs generating...'),false);
   }catch(err){S.saving=false;hideSavingOverlay();showToast('Save failed: '+err.message,true);}
 }
 
@@ -1394,6 +1458,7 @@ function showDDList(type){
   // Close ALL other dropdowns first
   if(type!=='vendor') hideDDList('vendor');
   if(type!=='po') hideDDList('po');
+  if(type!=='matrecno') hideDDList('matrecno');
   var listEl=document.getElementById('ddlist-'+type);
   if(!listEl)return;
   var inputEl=listEl.parentElement.querySelector('input');
@@ -1401,6 +1466,7 @@ function showDDList(type){
   var items=[];
   if(type==='vendor') items=getUniqueVendors();
   else if(type==='po') items=getPOsForVendor(S.matRecEntry?S.matRecEntry.topFields.vendorName:'');
+  else if(type==='matrecno') items=getUniqueMatRecNos();
   var filtered=items.filter(function(it){return it.toLowerCase().indexOf(val)>=0;});
   if(!filtered.length){listEl.innerHTML='<div class="dd-empty">No matches found</div>';}
   else{listEl.innerHTML=filtered.map(function(it){return '<div class="dd-item" data-ddval="'+esc(it)+'">'+esc(it)+'</div>';}).join('');}
@@ -1423,6 +1489,48 @@ function hideDDList(type){
 
 function selectDDItem(type,val){
   if(!S.matRecEntry)return;
+  if(type==='matrecno'){
+    S.editMatRecNo=val;
+    showSavingOverlay('Loading entry...');
+    runServer('getMatRecForEditAI',val).then(function(res){
+      hideSavingOverlay();
+      if(!res||res.status!=='ok'){showToast(res?res.message:'Load failed',true);return;}
+      var rows=res.rows;
+      if(!rows.length){showToast('No data found',true);return;}
+      var first=rows[0];
+      S.matRecEntry.topFields.vendorName=first.vendorName||'';
+      S.matRecEntry.topFields.poNo=first.poNo||'';
+      S.matRecEntry.topFields.invoiceNumber=first.invoiceNumber||'';
+      S.matRecEntry.topFields.invoiceDate=first.invoiceDate||'';
+      S.matRecEntry.topFields.dueDate=first.dueDate||'';
+      S.matRecEntry.topFields.bandel=first.bandel||'';
+      S.matRecEntry.topFields.addressGst=first.addressGst||'';
+      S.matRecEntry.topFields.ewayBill=first.ewayBill||'';
+      S.matRecEntry.topFields.lrBillVerified=first.lrBillVerified||'';
+      S.matRecEntry.topFields.ewayBillImage=first.ewayBillImage||'';
+      S.matRecEntry.topFields.invQty=first.invQty||'';
+      var invUp=String(first.invoiceUpload||'');
+      S.matRecEntry.topFields.invoiceUpload=invUp?invUp.split(',').filter(function(u){return u.trim();}).map(function(u){return{name:'file',url:u.trim()};}):[];
+      S.matRecEntry.topFields.lrImage=[];
+      S.matRecEntry.rows=rows.map(function(r){
+        var imgStr=String(r.matRecImage||'');
+        var imgs=imgStr?imgStr.split(',').filter(function(u){return u.trim();}).map(function(u){return{name:'file',url:u.trim()};}):[];
+        return {
+          changeBrand:r.changeBrand||'',brand:r.brand||'',salesOrderId:r.salesOrderId||'',
+          itemName:r.itemName||'',pendingQty:r.pendingQty||'',recQty:r.recQty||'',
+          cancelQty:r.cancelQty||'',poRate:r.poRate||'',size:r.size||'',unit:r.unit||'',
+          invoiceRate:r.invoiceRate||'',inwardBatchNo:r.inwardBatchNo||'',
+          grossWeight:r.grossWeight||'',remarks:r.remarks||'',
+          newUniqueNo:r.newUniqueNo||'',outwardBatchNo:r.outwardBatchNo||'',
+          matRecImage:imgs,poQuantity:0,alreadyReceived:0
+        };
+      });
+      recalcPendingTop();
+      render();
+    }).catch(function(e){hideSavingOverlay();showToast('Error: '+e.message,true);});
+    hideDDList(type);
+    return;
+  }
   if(type==='vendor'){
     var prevVendor=S.matRecEntry.topFields.vendorName;
     S.matRecEntry.topFields.vendorName=val;
@@ -1497,6 +1605,7 @@ document.addEventListener('blur',function(e){
     // Reset input to the valid state value (user can't type custom)
     if(dtype==='vendor') el.value=S.matRecEntry.topFields.vendorName||'';
     else if(dtype==='po') el.value=S.matRecEntry.topFields.poNo||'';
+    else if(dtype==='matrecno') el.value=S.editMatRecNo||'';
     hideDDList(dtype);
   },300);
 },true);
@@ -1595,10 +1704,28 @@ document.addEventListener('click',function(e){
     selectDDItem(ddOpenType,ddItem.getAttribute('data-ddval'));
     return;
   }
+  // Image delete
+  var fileDel=e.target.closest('.file-del');
+  if(fileDel&&S.matRecEntry){
+    var field=fileDel.getAttribute('data-delfield');
+    var idx=parseInt(fileDel.getAttribute('data-delidx'),10);
+    if(field.startsWith('row_')){
+      var ri=parseInt(field.split('_')[1],10);
+      if(Array.isArray(S.matRecEntry.rows[ri].matRecImage)){
+        S.matRecEntry.rows[ri].matRecImage.splice(idx,1);
+      }
+    } else {
+      if(Array.isArray(S.matRecEntry.topFields[field])){
+        S.matRecEntry.topFields[field].splice(idx,1);
+      }
+    }
+    render();return;
+  }
   // Row upload click
   var rowDz=e.target.closest('[data-rowdz]');
   if(rowDz&&S.matRecEntry){
     if(e.target.closest('.click-link'))return;
+    if(e.target.closest('.file-del'))return;
     var ri=parseInt(rowDz.getAttribute('data-rowdz'),10);
     var inp=document.createElement('input');inp.type='file';inp.accept='image/*,.pdf,.doc,.docx';inp.multiple=true;
     inp.onchange=function(){
@@ -1644,6 +1771,7 @@ document.addEventListener('click',function(e){
   if(a==='dt-refresh'){S.dt.filters={};S.dt.dateFilters={};S.dt.filterOpen=null;S.dt.page=1;S.globalSearch='';refreshData();return;}
   if(a==='dt-reset-filters'){S.dt.filters={};S.dt.dateFilters={};S.dt.filterOpen=null;S.dt.page=1;S.globalSearch='';render();return;}
   if(a==='open-matrec-add'){openMatRecAdd();return;}
+  if(a==='open-matrec-edit'){openMatRecEdit();return;}
   if(a==='back-to-matview'){closeMatRecAdd();return;}
   if(a==='add-matrow'){if(S.matRecEntry){S.matRecEntry.rows.push(freshMatRecRow());render();}return;}
   if(a==='del-last-matrow'){if(S.matRecEntry&&S.matRecEntry.rows.length>1){S.matRecEntry.rows.pop();render();}return;}
@@ -1681,7 +1809,7 @@ document.addEventListener('click',function(e){
   if(!e.target.closest('.dt-colmenu-wrap')&&S.colMenuOpenPo){S.colMenuOpenPo=false;render();}
   // Close dropdown lists on outside click
   if(ddOpenType&&!e.target.closest('.typeable-dd')){
-    hideDDList('vendor');hideDDList('po');
+    hideDDList('vendor');hideDDList('po');hideDDList('matrecno');
   }
 });
 
@@ -1750,6 +1878,7 @@ document.addEventListener('click',function(e){
   var dz=e.target.closest('.dropzone');
   if(!dz||!S.matRecEntry)return;
   if(e.target.closest('.click-link'))return;
+  if(e.target.closest('.file-del'))return;
   var field=dz.getAttribute('data-dropzone');if(!field)return;
   var inp=document.createElement('input');inp.type='file';inp.accept='image/*,.pdf,.doc,.docx';inp.multiple=true;
   inp.onchange=function(){

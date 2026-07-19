@@ -114,6 +114,10 @@ function mapUserAI(r) {
     password: String(pickAI(r, ['PASSWORD', 'Password', 'password', 'PASS', 'Pass']) || '').trim(),
     matRecView: isYesAI(pickAI(r, ['MATERIAL RECEIVED VIEW ENTRY', 'MATERIAL RECEIVED VIEW', 'MATERRIAL RECEIVED VIEW ENTRY', 'MAT REC VIEW'])),
     matRecAdd:  isYesAI(pickAI(r, ['MATERIAL ENTRY ADD', 'MATERIAL ADD'])),
+    matRecEdit: (function(){
+      var val = String(pickAI(r, ['MATERIAL ENTRY ADD', 'MATERIAL ADD']) || '').trim().toUpperCase();
+      return val === 'YES & EDIT' || val === 'YES AND EDIT';
+    })(),
     poReceived: isYesAI(pickAI(r, ['PO RECEIVED', 'PO RECIEVED']))
   };
 }
@@ -153,6 +157,7 @@ function mapMatRecAI(rows) {
       outwardBatchNo: fmtValueAI(r['OUTWARD BATCH NO']),
       matRecImage: fmtValueAI(r['MATRIAL REC IMAGE MULTIPLE IMAGE']),
       status: fmtValueAI(r['STATUS']),
+      matRecNo: fmtValueAI(pickAI(r, ['MAT REC NO', 'MAT-REC NO', 'MAT-REC-NO', 'MATRECNO'])),
       loginName: fmtValueAI(r['LOGIN NAME'] || r['LOGIN ID'] || '')
     };
   });
@@ -264,7 +269,7 @@ function getBootstrapDataAI(perms) {
   };
 
   // Permission-based loading: only fetch sheets user actually needs (faster!)
-  var needMat = !perms || perms.matRecView || perms.matRecAdd;
+  var needMat = !perms || perms.matRecView || perms.matRecAdd || perms.matRecEdit;
   var needPo = !perms || perms.poReceived;
 
   if (needMat) {
@@ -370,7 +375,7 @@ function saveMatRecEntriesAI(payload) {
     if (!payload) return { status: 'error', message: 'No data received.' };
 
     var perms = getUserPermissionsAI(payload.loginId || '');
-    if (!perms || !perms.matRecAdd) return { status: 'error', message: 'You do not have permission to add Material Received entries.' };
+    if (!perms || (!perms.matRecAdd && !perms.matRecEdit)) return { status: 'error', message: 'You do not have permission to add/edit Material Received entries.' };
 
     var ss = getSSAI();
     var sh = ss.getSheetByName(SHEETS_AI.matRecResp);
@@ -420,8 +425,12 @@ function saveMatRecEntriesAI(payload) {
 
     var dataRows = rows.map(function (r) {
       // Assign outward batch number server-side
+      // If row already has a valid outward batch (edit mode), keep it
       var outBatch = '';
-      if (parseFloat(r.recQty) > 0) {
+      var existingOB = String(r.outwardBatchNo || '');
+      if (existingOB && existingOB.indexOf('__AUTO__') !== 0) {
+        outBatch = existingOB;
+      } else if (parseFloat(r.recQty) > 0) {
         outBatch = String(outwardBase + obIdx);
         obIdx++;
       }
@@ -522,6 +531,81 @@ function uploadFileToDriveAI(payload) {
   } catch (err) {
     return { status: 'error', message: err.message };
   }
+}
+
+function getMatRecForEditAI(matRecNo) {
+  if (!matRecNo) return { status: 'error', message: 'No MAT-REC number provided' };
+  var ss = getSSAI();
+  var sh = ss.getSheetByName(SHEETS_AI.matRecResp);
+  if (!sh) return { status: 'error', message: 'Sheet not found' };
+  var data = sh.getDataRange().getValues();
+  if (data.length < 2) return { status: 'error', message: 'No data' };
+  var rows = [];
+  for (var i = 1; i < data.length; i++) {
+    var rowMatRec = String(data[i][34] || '').trim();
+    var rowStatus = String(data[i][33] || '').trim().toUpperCase();
+    var rowRecQty = String(data[i][19] || '').trim();
+    if (rowMatRec === matRecNo && rowStatus === 'ACTIVE' && rowRecQty !== '') {
+      rows.push({
+        rowIndex: i + 1,
+        timestamp: fmtValueAI(data[i][0]),
+        poNo: fmtValueAI(data[i][1]),
+        invoiceUpload: fmtValueAI(data[i][2]),
+        vendorName: fmtValueAI(data[i][3]),
+        invQty: fmtValueAI(data[i][5]),
+        dueDate: fmtValueAI(data[i][6]),
+        bandel: fmtValueAI(data[i][7]),
+        addressGst: fmtValueAI(data[i][8]),
+        ewayBill: fmtValueAI(data[i][9]),
+        lrBillVerified: fmtValueAI(data[i][10]),
+        invoiceNumber: fmtValueAI(data[i][11]),
+        invoiceDate: fmtValueAI(data[i][12]),
+        ewayBillImage: fmtValueAI(data[i][13]),
+        changeBrand: fmtValueAI(data[i][14]),
+        brand: fmtValueAI(data[i][15]),
+        salesOrderId: fmtValueAI(data[i][16]),
+        itemName: fmtValueAI(data[i][17]),
+        pendingQty: fmtValueAI(data[i][18]),
+        recQty: fmtValueAI(data[i][19]),
+        cancelQty: fmtValueAI(data[i][20]),
+        poRate: fmtValueAI(data[i][21]),
+        size: fmtValueAI(data[i][22]),
+        unit: fmtValueAI(data[i][23]),
+        invoiceRate: fmtValueAI(data[i][24]),
+        inwardBatchNo: fmtValueAI(data[i][25]),
+        grossWeight: fmtValueAI(data[i][26]),
+        remarks: fmtValueAI(data[i][27]),
+        newUniqueNo: fmtValueAI(data[i][28]),
+        outwardBatchNo: fmtValueAI(data[i][29]),
+        matRecImage: fmtValueAI(data[i][30])
+      });
+    }
+  }
+  if (!rows.length) return { status: 'error', message: 'No ACTIVE rows found for ' + matRecNo };
+  try {
+    return JSON.parse(JSON.stringify({ status: 'ok', rows: rows }));
+  } catch (e) {
+    return { status: 'error', message: 'Serialize error: ' + e.message };
+  }
+}
+
+function cancelMatRecRowsAI(matRecNo) {
+  if (!matRecNo) return { status: 'error', message: 'No MAT-REC number' };
+  var ss = getSSAI();
+  var sh = ss.getSheetByName(SHEETS_AI.matRecResp);
+  if (!sh) return { status: 'error', message: 'Sheet not found' };
+  var data = sh.getDataRange().getValues();
+  var statusCol = 34; // AH column (1-indexed)
+  var count = 0;
+  for (var i = 1; i < data.length; i++) {
+    var rowMatRec = String(data[i][34] || '').trim();
+    var rowStatus = String(data[i][33] || '').trim().toUpperCase();
+    if (rowMatRec === matRecNo && rowStatus === 'ACTIVE') {
+      sh.getRange(i + 1, statusCol).setValue('CANCEL');
+      count++;
+    }
+  }
+  return { status: 'ok', cancelled: count };
 }
 
 function debugPoHeadersAI() {
