@@ -262,6 +262,17 @@ table.entry select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 
 
 .saving-overlay{position:fixed;inset:0;background:rgba(12,16,23,.35);z-index:200;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(1px);}
 .saving-overlay .saving-box{background:var(--surface);border-radius:12px;padding:24px 36px;box-shadow:0 20px 50px rgba(0,0,0,.25);display:flex;align-items:center;gap:14px;font-size:14px;font-weight:600;color:var(--ink);}
+.confirm-overlay{position:fixed;inset:0;background:rgba(12,16,23,.4);z-index:300;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);animation:toast-in .15s ease;}
+.confirm-box{background:var(--surface);border-radius:12px;padding:28px 32px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-width:360px;width:90%;text-align:center;}
+.confirm-box .confirm-icon{font-size:36px;margin-bottom:12px;}
+.confirm-box .confirm-title{font-size:16px;font-weight:700;color:var(--ink);margin-bottom:6px;font-family:'Space Grotesk',sans-serif;}
+.confirm-box .confirm-msg{font-size:12.5px;color:var(--muted);margin-bottom:20px;line-height:1.5;}
+.confirm-box .confirm-btns{display:flex;gap:10px;justify-content:center;}
+.confirm-box .confirm-btns button{padding:10px 24px;border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;border:none;transition:all .15s;}
+.confirm-box .confirm-btns .btn-yes{background:var(--danger);color:#fff;}
+.confirm-box .confirm-btns .btn-yes:hover{filter:brightness(1.1);}
+.confirm-box .confirm-btns .btn-no{background:var(--bg);color:var(--ink);border:1.5px solid var(--line);}
+.confirm-box .confirm-btns .btn-no:hover{border-color:var(--accent);color:var(--accent-dark);}
 .click-link{color:var(--accent-dark);text-decoration:underline;font-weight:600;font-size:11px;cursor:pointer;}
 .click-link:hover{color:var(--accent);}
 
@@ -464,6 +475,22 @@ function showSavingOverlay(msg){
   el.innerHTML='<div class="saving-box"><span class="spinner"></span>'+esc(msg||'Saving...')+'</div>';
 }
 function hideSavingOverlay(){var el=document.getElementById('savingOverlay');if(el)el.remove();}
+
+function showConfirmPopup(){
+  var el=document.getElementById('confirmPopup');
+  if(!el){el=document.createElement('div');el.id='confirmPopup';document.body.appendChild(el);}
+  el.className='confirm-overlay';
+  el.innerHTML='<div class="confirm-box">'+
+    '<div class="confirm-icon">\u26A0\uFE0F</div>'+
+    '<div class="confirm-title">Reset Form?</div>'+
+    '<div class="confirm-msg">Are you sure you want to reset? All entered data including item rows, uploads, and selections will be cleared.</div>'+
+    '<div class="confirm-btns">'+
+      '<button class="btn-no" data-action="confirm-no">No, Go Back</button>'+
+      '<button class="btn-yes" data-action="confirm-yes">Yes, Reset</button>'+
+    '</div>'+
+  '</div>';
+}
+function hideConfirmPopup(){var el=document.getElementById('confirmPopup');if(el)el.remove();}
 
 /* Upload file to Google Drive (reads as base64, sends to server) */
 function uploadFileToDrive(file,callback){
@@ -1621,7 +1648,9 @@ document.addEventListener('click',function(e){
   if(a==='del-last-matrow'){if(S.matRecEntry&&S.matRecEntry.rows.length>1){S.matRecEntry.rows.pop();render();}return;}
   if(a==='del-matrow'){if(S.matRecEntry){var idx=parseInt(el.getAttribute('data-i'),10);S.matRecEntry.rows.splice(idx,1);if(!S.matRecEntry.rows.length)S.matRecEntry.rows.push(freshMatRecRow());render();}return;}
   if(a==='submit-matrec'){submitMatRec();return;}
-  if(a==='reset-matrec'){if(S.matRecEntry&&confirm('Reset form? All entered data will be cleared.')){S.matRecEntry=freshMatRecEntry();render();}return;}
+  if(a==='reset-matrec'){if(S.matRecEntry)showConfirmPopup();return;}
+  if(a==='confirm-yes'){hideConfirmPopup();S.matRecEntry=freshMatRecEntry();render();return;}
+  if(a==='confirm-no'){hideConfirmPopup();return;}
   if(a==='pdf-punched'){generatePdfPunched();return;}
   if(a==='pdf-pending'){generatePdfPending();return;}
   if(a==='sort'){var c=el.getAttribute('data-col');var st=S.dt;if(st.sort===c)st.dir*=-1;else{st.sort=c;st.dir=1;}st.page=1;render();return;}
