@@ -235,7 +235,8 @@
 ---
 
 ## 🚫 NEGATIVE NUMBERS BLOCKED
-- All numeric fields in Material Rec form have `min="0"` (HTML validation)
-- Fields: Invoice Quantity, REC QTY, Cancel QTY, Invoice Rate, Gross Weight
-- Save-time validation: rejects negative values (clears to empty + error)
-- No negative data can be entered or saved in any number field
+- All numeric fields in Material Rec form have `min="0"` (HTML validation) — but `min` attribute alone does NOT stop a user from typing "-" (proven by testing, "-12" was typed successfully into Gross Weight)
+- Real-time JS fix: on every `input` event, if the field `type==='number'` and its value contains `-`, the `-` is stripped immediately (`el.value=el.value.replace(/-/g,'')`)
+- Applied to BOTH row-level fields (`data-matfield`: REC QTY, Cancel QTY, Invoice Rate, Gross Weight) AND top-level field (`data-mattop`: Invoice Quantity) — covers every numeric input in the Material Rec form
+- Save-time validation: also rejects negative values (clears to empty + error) as a second layer of defense
+- Result: no negative data can be entered, typed, pasted, or saved in any number field anywhere in the Material Rec form
