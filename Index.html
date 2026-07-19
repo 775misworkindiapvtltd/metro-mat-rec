@@ -1124,6 +1124,7 @@ function renderMatRecAdd(){
         '<button class="btn btn-ghost" data-action="reset-matrec" style="margin-left:auto;padding:7px 14px;font-size:11px;color:var(--danger);border-color:var(--danger);">\u21BA Reset Form</button>'+
         '<button class="btn btn-ghost" data-action="pdf-punched" style="padding:7px 14px;font-size:11px;">\uD83D\uDCC4 PDF (Punched)</button>'+
         '<button class="btn btn-ghost" data-action="pdf-pending" style="padding:7px 14px;font-size:11px;">\uD83D\uDCC4 PDF (Pending)</button>'+
+        '<button class="btn btn-ghost" data-action="pdf-overall" style="padding:7px 14px;font-size:11px;">\uD83D\uDCC4 PDF (Overall)</button>'+
         '<button class="btn btn-gold" data-action="submit-matrec" '+(S.saving?'disabled':'')+'>'+(S.saving?'<span class="spinner" style="width:14px;height:14px;border-width:2px;"></span> Saving\u2026':'\u2714 Save Entry')+'</button>'+
       '</div>'+
     '</div>';
@@ -1214,13 +1215,27 @@ function generatePdfPending(){
   openPdfPopup('Material Received - Pending Quantity',T,rows,'pending');
 }
 
+function generatePdfOverall(){
+  var E=S.matRecEntry;if(!E)return;
+  var T=E.topFields;
+  var rows=E.rows;
+  if(!rows.length){showToast('No rows to generate PDF.',true);return;}
+  openPdfPopup('Material Received - Complete Entry',T,rows,'overall');
+}
+
 function openPdfPopup(title,topFields,rows,type){
   var T=topFields;
   var isPunched=(type==='punched');
+  var isOverall=(type==='overall');
 
-  var cols=isPunched?
-    [{k:'brand',l:'Brand'},{k:'salesOrderId',l:'Sales Order ID'},{k:'itemName',l:'Item Name'},{k:'recQty',l:'REC QTY'},{k:'cancelQty',l:'Cancel QTY'},{k:'poRate',l:'PO Rate'},{k:'size',l:'Size'},{k:'unit',l:'Unit'},{k:'invoiceRate',l:'Invoice Rate'},{k:'inwardBatchNo',l:'Inward Batch No'},{k:'grossWeight',l:'Gross Wt'},{k:'remarks',l:'Remarks'},{k:'outwardBatchNo',l:'Outward Batch'}]:
-    [{k:'brand',l:'Brand'},{k:'salesOrderId',l:'Sales Order ID'},{k:'itemName',l:'Item Name'},{k:'pendingQty',l:'Pending QTY'},{k:'poRate',l:'PO Rate'},{k:'size',l:'Size'},{k:'unit',l:'Unit'},{k:'newUniqueNo',l:'New Unique No'}];
+  var cols;
+  if(isPunched){
+    cols=[{k:'brand',l:'Brand'},{k:'salesOrderId',l:'Sales Order ID'},{k:'itemName',l:'Item Name'},{k:'recQty',l:'REC QTY'},{k:'cancelQty',l:'Cancel QTY'},{k:'poRate',l:'PO Rate'},{k:'size',l:'Size'},{k:'unit',l:'Unit'},{k:'invoiceRate',l:'Invoice Rate'},{k:'inwardBatchNo',l:'Inward Batch No'},{k:'grossWeight',l:'Gross Wt'},{k:'remarks',l:'Remarks'},{k:'outwardBatchNo',l:'Outward Batch'}];
+  } else if(isOverall){
+    cols=[{k:'changeBrand',l:'Change Brand'},{k:'brand',l:'Brand'},{k:'salesOrderId',l:'Sales Order ID'},{k:'itemName',l:'Item Name'},{k:'pendingQty',l:'Pending QTY'},{k:'recQty',l:'REC QTY'},{k:'cancelQty',l:'Cancel QTY'},{k:'poRate',l:'PO Rate'},{k:'size',l:'Size'},{k:'unit',l:'Unit'},{k:'invoiceRate',l:'Invoice Rate'},{k:'inwardBatchNo',l:'Inward Batch No'},{k:'grossWeight',l:'Gross Wt'},{k:'remarks',l:'Remarks'},{k:'outwardBatchNo',l:'Outward Batch'}];
+  } else {
+    cols=[{k:'brand',l:'Brand'},{k:'salesOrderId',l:'Sales Order ID'},{k:'itemName',l:'Item Name'},{k:'pendingQty',l:'Pending QTY'},{k:'poRate',l:'PO Rate'},{k:'size',l:'Size'},{k:'unit',l:'Unit'},{k:'newUniqueNo',l:'New Unique No'}];
+  }
 
   var tblHead='<tr>'+cols.map(function(c){return '<th style="border:1px solid #ddd;padding:6px 8px;background:#1a2130;color:#fff;font-size:10px;text-transform:uppercase;">'+c.l+'</th>';}).join('')+'</tr>';
   var tblBody=rows.map(function(r,i){
@@ -1656,6 +1671,7 @@ document.addEventListener('click',function(e){
   if(a==='confirm-no'){hideConfirmPopup();return;}
   if(a==='pdf-punched'){generatePdfPunched();return;}
   if(a==='pdf-pending'){generatePdfPending();return;}
+  if(a==='pdf-overall'){generatePdfOverall();return;}
   if(a==='sort'){var c=el.getAttribute('data-col');var st=S.dt;if(st.sort===c)st.dir*=-1;else{st.sort=c;st.dir=1;}st.page=1;render();return;}
   if(a==='togglesearch'){var c2=el.getAttribute('data-col');if(isDateColumn(c2)){openDateRangeAI('dt',c2);return;}S.dt.filterOpen=S.dt.filterOpen===c2?null:c2;render();if(S.dt.filterOpen){var inp2=document.querySelector('input[data-action="filter"][data-col="'+c2+'"]');if(inp2)inp2.focus();}return;}
   if(a==='togglecolmenu'){S.colMenuOpen=!S.colMenuOpen;render();return;}

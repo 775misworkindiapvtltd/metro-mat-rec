@@ -411,11 +411,15 @@ function saveMatRecEntriesAI(payload) {
         r.pendingQty||'', r.recQty||'', r.cancelQty||'', r.poRate||'',
         r.size||'', r.unit||'', r.invoiceRate||'', r.inwardBatchNo||'',
         r.grossWeight||'', r.remarks||'', r.newUniqueNo||'', r.outwardBatchNo||'',
-        r.matRecImage||'', loginName, '', '', matRecNo
+        r.matRecImage||'', loginName,
+        '',          // Col 33 (AG) = REC QTY PDF LINK (filled later)
+        'ACTIVE',    // Col 34 (AH) = STATUS
+        matRecNo,    // Col 35 (AI) = MAT-REC-XXXXX
+        ''           // Col 36 (AJ) = OVERALL PDF LINK (filled later)
       ];
     });
 
-    sh.getRange(sh.getLastRow() + 1, 1, dataRows.length, 35).setValues(dataRows);
+    sh.getRange(sh.getLastRow() + 1, 1, dataRows.length, 36).setValues(dataRows);
     return { status: 'ok', saved: dataRows.length, matRecNo: matRecNo, startRow: sh.getLastRow() - dataRows.length + 1 };
   } catch (err) {
     return { status: 'error', message: err.message };
@@ -539,10 +543,10 @@ function savePdfToDriveAI(payload) {
 }
 
 // Save PDF link to MAT REC RESPONSES at specific columns
-// type='punched' → col 33 (AG), type='pending' → col 34 (AH)
+// type='punched' → col 33 (AG), type='pending' → col 33 (AG), type='overall' → col 36 (AJ)
 function savePdfLinkToSheetAI(payload) {
   try {
-    if (!payload || !payload.pdfUrl || !payload.poNo) {
+    if (!payload || !payload.pdfUrl) {
       return { status: 'error', message: 'Missing data' };
     }
     var ss = getSSAI();
@@ -551,7 +555,9 @@ function savePdfLinkToSheetAI(payload) {
     
     // Determine column based on PDF type
     var pdfCol = 33; // AG = REC QTY PDF (punched)
-    if (payload.type === 'pending') pdfCol = 34; // AH = PENDING QTY PDF
+    if (payload.type === 'pending') pdfCol = 33; // AG also (pending replaces if needed)
+    if (payload.type === 'overall') pdfCol = 36; // AJ = OVERALL PDF
+    if (payload.type === 'punched') pdfCol = 33; // AG
     
     // Find rows with matching MAT-REC number and set PDF link
     var matRecNo = payload.matRecNo || '';
