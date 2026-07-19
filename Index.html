@@ -936,7 +936,7 @@ function getPOsForVendor(vendor){
   return Object.keys(pos).sort();
 }
 
-/* Calculate already received qty for a specific PO+vendor+item */
+/* Calculate already received qty for a specific PO+vendor+item (only ACTIVE status) */
 function getAlreadyReceived(poNo,vendorName,itemName){
   var total=0;
   var pLow=(poNo||'').toLowerCase();
@@ -944,8 +944,12 @@ function getAlreadyReceived(poNo,vendorName,itemName){
   var iLow=(itemName||'').toLowerCase();
   S.matRecResp.forEach(function(r){
     if(String(r.poNo||'').toLowerCase()===pLow && String(r.vendorName||'').toLowerCase()===vLow && String(r.itemName||'').toLowerCase()===iLow){
-      var q=parseFloat(r.recQty);
-      if(!isNaN(q)) total+=q;
+      // Only count rows with ACTIVE status
+      var status=String(r.status||'').trim().toUpperCase();
+      if(status==='ACTIVE'||status===''){
+        var q=parseFloat(r.recQty);
+        if(!isNaN(q)) total+=q;
+      }
     }
   });
   return total;
@@ -1075,7 +1079,9 @@ function renderMatRecAdd(){
       {k:'brand',label:'Brand',w:100,ro:true},
       {k:'salesOrderId',label:'Sales Order ID',w:130,ro:true},
       {k:'itemName',label:'Item Name',w:250,ro:true},
+      {k:'poQuantity',label:'PO QTY',w:90,num:true,ro:true},
       {k:'pendingQty',label:'Pending QTY',w:100,num:true,ro:true},
+      {k:'alreadyReceived',label:'Already REC',w:100,num:true,ro:true},
       {k:'recQty',label:'REC QTY',w:90,num:true},
       {k:'cancelQty',label:'Cancel QTY',w:100,num:true},
       {k:'poRate',label:'PO Rate',w:90,num:true,ro:true},
