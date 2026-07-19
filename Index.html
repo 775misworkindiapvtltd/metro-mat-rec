@@ -232,9 +232,9 @@ table.entry select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 
 .mat-top-field .cell-ro{background:#F5F4F0;color:var(--muted);border-color:#ECEAE4;cursor:not-allowed;}
 
 /* Typeable dropdown */
-.typeable-dd{position:relative;}
+.typeable-dd{position:relative;z-index:10;}
 .typeable-dd input{width:100%;}
-.typeable-dd .dd-list{position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--surface);border:1.5px solid var(--line);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:50;display:none;margin-top:2px;}
+.typeable-dd .dd-list{position:fixed;max-height:200px;overflow-y:auto;background:var(--surface);border:1.5px solid var(--line);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:9999;display:none;min-width:200px;}
 .typeable-dd .dd-list.open{display:block;}
 .typeable-dd .dd-item{padding:8px 12px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--line-light);}
 .typeable-dd .dd-item:hover{background:var(--accent-tint2);}
@@ -1234,8 +1234,15 @@ function showDDList(type){
   if(type==='vendor') items=getUniqueVendors();
   else if(type==='po') items=getPOsForVendor(S.matRecEntry?S.matRecEntry.topFields.vendorName:'');
   var filtered=items.filter(function(it){return it.toLowerCase().indexOf(val)>=0;});
-  if(!filtered.length){listEl.innerHTML='<div class="dd-empty">No matches</div>';}
+  if(!filtered.length){listEl.innerHTML='<div class="dd-empty">No matches found</div>';}
   else{listEl.innerHTML=filtered.map(function(it){return '<div class="dd-item" data-ddval="'+esc(it)+'">'+esc(it)+'</div>';}).join('');}
+  // Position fixed below input
+  if(inputEl){
+    var rect=inputEl.getBoundingClientRect();
+    listEl.style.top=(rect.bottom+2)+'px';
+    listEl.style.left=rect.left+'px';
+    listEl.style.width=Math.max(rect.width,200)+'px';
+  }
   listEl.classList.add('open');
   ddOpenType=type;
 }
@@ -1310,6 +1317,33 @@ document.addEventListener('focus',function(e){
   if(el.hasAttribute('data-ddtype')){
     showDDList(el.getAttribute('data-ddtype'));
   }
+},true);
+
+// On blur: if value not in list, clear it (restrict to list only)
+document.addEventListener('blur',function(e){
+  var el=e.target;
+  if(!el.hasAttribute('data-ddtype'))return;
+  var dtype=el.getAttribute('data-ddtype');
+  // Delay to allow click on dropdown item first
+  setTimeout(function(){
+    if(!S.matRecEntry)return;
+    var val=(el.value||'').trim();
+    if(!val)return;
+    var items=[];
+    if(dtype==='vendor') items=getUniqueVendors();
+    else if(dtype==='po') items=getPOsForVendor(S.matRecEntry.topFields.vendorName);
+    var match=items.find(function(it){return it.toLowerCase()===val.toLowerCase();});
+    if(!match){
+      // Value not in list — clear it
+      if(dtype==='vendor'){S.matRecEntry.topFields.vendorName='';el.value='';}
+      else if(dtype==='po'){S.matRecEntry.topFields.poNo='';el.value='';}
+    } else {
+      // Normalize to exact match from list
+      if(dtype==='vendor') S.matRecEntry.topFields.vendorName=match;
+      else if(dtype==='po') S.matRecEntry.topFields.poNo=match;
+      el.value=match;
+    }
+  },250);
 },true);
 
 document.addEventListener('input',function(e){
