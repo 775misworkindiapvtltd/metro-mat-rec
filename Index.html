@@ -113,7 +113,12 @@ input,select,button{font-family:inherit;font-size:13px;}
 .sidebar .nav-item.active::after{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:18px;background:var(--accent);border-radius:0 3px 3px 0;}
 .sidebar .nav-item svg{width:18px;height:18px;flex:none;}
 .sidebar .nav-item .nav-label{font-size:8px;font-weight:600;opacity:1;text-align:center;line-height:1.1;color:inherit;letter-spacing:.02em;}
-.sidebar.expanded .nav-item .nav-label{font-size:11px;font-weight:500;}
+.sidebar.expanded .nav-item{flex-direction:row;gap:10px;padding:9px 10px;}
+.sidebar.expanded .nav-item .nav-label{font-size:12px;font-weight:500;text-align:left;}
+.sidebar .nav-item .nav-label .full{display:none;}
+.sidebar .nav-item .nav-label .short{display:inline;}
+.sidebar.expanded .nav-item .nav-label .full{display:inline;}
+.sidebar.expanded .nav-item .nav-label .short{display:none;}
 .sidebar-foot{padding:8px 6px 8px;border-top:1px solid var(--sidebar-line);display:flex;justify-content:center;flex:none;}
 .logout-btn{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;color:#8E887D;transition:all .12s;}
 .logout-btn:hover{background:var(--sidebar-hover);color:#E8E0D0;}
@@ -597,8 +602,8 @@ function renderShell(inner){
     '<div class="'+sidebarCls+'" data-action="toggle-sidebar">'+
       '<div class="brand"><div class="brand-icon">MR</div></div>'+
       '<div class="nav">'+
-        ((S.user.matRecView||S.user.matRecAdd)?'<div class="nav-item '+(S.page==='matRecView'||S.page==='matRecAdd'?'active':'')+'" data-action="nav" data-page="matRecView">'+matIcon+'<span class="nav-label">Mat Rec</span></div>':'')+
-        (S.user.poReceived?'<div class="nav-item '+(S.page==='poRecView'?'active':'')+'" data-action="nav" data-page="poRecView">'+poIcon+'<span class="nav-label">PO Rec</span></div>':'')+
+        ((S.user.matRecView||S.user.matRecAdd)?'<div class="nav-item '+(S.page==='matRecView'||S.page==='matRecAdd'?'active':'')+'" data-action="nav" data-page="matRecView">'+matIcon+'<span class="nav-label"><span class="short">Mat Rec</span><span class="full">Material Received</span></span></div>':'')+
+        (S.user.poReceived?'<div class="nav-item '+(S.page==='poRecView'?'active':'')+'" data-action="nav" data-page="poRecView">'+poIcon+'<span class="nav-label"><span class="short">PO Rec</span><span class="full">PO Received</span></span></div>':'')+
       '</div>'+
       '<div class="sidebar-foot"><div class="logout-btn" data-action="logout" title="Sign Out">'+logoutIcon+'</div></div>'+
     '</div>'+
