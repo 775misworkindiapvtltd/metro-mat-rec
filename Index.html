@@ -1368,6 +1368,9 @@ function generatePdfPunched(){
 function generatePdfPending(){
   var E=S.matRecEntry;if(!E)return;
   var T=E.topFields;
+  // Pending PDF only makes sense when the TOTAL pending qty (top-level) is > 0
+  var totalPending=parseFloat(T.pendingQtyTop)||0;
+  if(totalPending<=0){showToast('Pending QTY (Total) is 0. Pending PDF not generated.',true);return;}
   var rows=E.rows.filter(function(r){var pq=parseFloat(r.pendingQty)||0;return pq>0;});
   if(!rows.length){showToast('No rows with Pending QTY to generate PDF.',true);return;}
   openPdfPopup('Material Received - Pending Quantity',T,rows,'pending');
@@ -1381,22 +1384,61 @@ function generatePdfOverall(){
   openPdfPopup('Material Received - Complete Entry',T,rows,'overall');
 }
 
-/* Build PDF HTML content (reusable) */
+/* Extract plain URL list from a value that may be: array of {url}, comma-string, or plain string */
+function extractUrls_(val){
+  if(Array.isArray(val)){
+    return val.map(function(f){return (f&&typeof f==='object')?(f.url||''):String(f||'');}).filter(Boolean);
+  }
+  return String(val||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+}
+/* Build "Click Here" hyperlink(s) — one per URL, comma-separated if multiple */
+function linksHtml_(val){
+  var urls=extractUrls_(val);
+  if(!urls.length)return '';
+  return urls.map(function(u,i){
+    return '<a href="'+esc(u)+'" target="_blank" style="color:#1a56db;text-decoration:underline;">Click Here'+(urls.length>1?' '+(i+1):'')+'</a>';
+  }).join(', ');
+}
+
+/* FULL row-level column set — SAME columns for punched/pending/overall PDFs */
+var PDF_FULL_COLS_=[
+  {k:'changeBrand',l:'Change Brand'},{k:'brand',l:'Brand'},{k:'salesOrderId',l:'Sales Order ID'},
+  {k:'itemName',l:'Item Name'},{k:'pendingQty',l:'Pending QTY'},{k:'recQty',l:'REC QTY'},
+  {k:'cancelQty',l:'Cancel QTY'},{k:'poRate',l:'PO Rate'},{k:'size',l:'Size'},{k:'unit',l:'Unit'},
+  {k:'invoiceRate',l:'Invoice Rate'},{k:'inwardBatchNo',l:'Inward Batch No'},{k:'grossWeight',l:'Gross Wt'},
+  {k:'remarks',l:'Remarks'},{k:'newUniqueNo',l:'New Unique No'},{k:'outwardBatchNo',l:'Outward Batch'},
+  {k:'matRecImage',l:'Image'}
+];
+
+/* Build PDF HTML content (reusable) — landscape, all columns, image "Click Here" links */
 function buildPdfHtml(title,topFields,rows,type){
   var T=topFields;
-  var isPunched=(type==='punched');
-  var isOverall=(type==='overall');
-  var cols;
-  if(isPunched){
-    cols=[{k:'brand',l:'Brand'},{k:'salesOrderId',l:'Sales Order ID'},{k:'itemName',l:'Item Name'},{k:'recQty',l:'REC QTY'},{k:'cancelQty',l:'Cancel QTY'},{k:'poRate',l:'PO Rate'},{k:'size',l:'Size'},{k:'unit',l:'Unit'},{k:'invoiceRate',l:'Invoice Rate'},{k:'inwardBatchNo',l:'Inward Batch No'},{k:'grossWeight',l:'Gross Wt'},{k:'remarks',l:'Remarks'},{k:'outwardBatchNo',l:'Outward Batch'}];
-  } else if(isOverall){
-    cols=[{k:'changeBrand',l:'Change Brand'},{k:'brand',l:'Brand'},{k:'salesOrderId',l:'Sales Order ID'},{k:'itemName',l:'Item Name'},{k:'pendingQty',l:'Pending QTY'},{k:'recQty',l:'REC QTY'},{k:'cancelQty',l:'Cancel QTY'},{k:'poRate',l:'PO Rate'},{k:'size',l:'Size'},{k:'unit',l:'Unit'},{k:'invoiceRate',l:'Invoice Rate'},{k:'inwardBatchNo',l:'Inward Batch No'},{k:'grossWeight',l:'Gross Wt'},{k:'remarks',l:'Remarks'},{k:'outwardBatchNo',l:'Outward Batch'}];
-  } else {
-    cols=[{k:'brand',l:'Brand'},{k:'salesOrderId',l:'Sales Order ID'},{k:'itemName',l:'Item Name'},{k:'pendingQty',l:'Pending QTY'},{k:'poRate',l:'PO Rate'},{k:'size',l:'Size'},{k:'unit',l:'Unit'},{k:'newUniqueNo',l:'New Unique No'}];
-  }
-  var tblHead='<tr>'+cols.map(function(c){return '<th style="border:1px solid #ddd;padding:6px 8px;background:#1a2130;color:#fff;font-size:10px;text-transform:uppercase;">'+c.l+'</th>';}).join('')+'</tr>';
-  var tblBody=rows.map(function(r,i){return '<tr style="'+(i%2===0?'':'background:#f9f9f6;')+'">'+cols.map(function(c){return '<td style="border:1px solid #ddd;padding:5px 8px;font-size:11px;">'+esc(r[c.k]||'')+'</td>';}).join('')+'</tr>';}).join('');
-  return '<!DOCTYPE html><html><head><title>'+esc(title)+'</title><style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;padding:20px;color:#333;}.header{text-align:center;margin-bottom:20px;border-bottom:2px solid #b4862b;padding-bottom:12px;}.header h1{font-size:16px;color:#1a1712;margin-bottom:4px;}.header h2{font-size:12px;color:#666;font-weight:normal;}.info-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;font-size:11px;}.info-item label{font-weight:700;color:#666;font-size:9px;text-transform:uppercase;display:block;margin-bottom:2px;}.info-item span{color:#1a1712;font-weight:500;}table{width:100%;border-collapse:collapse;margin-top:10px;}.footer{margin-top:20px;text-align:right;font-size:10px;color:#888;}</style></head><body><div class="header"><h1>'+esc(title)+'</h1><h2>Generated: '+fmtNow()+'</h2></div><div class="info-grid"><div class="info-item"><label>Vendor</label><span>'+esc(T.vendorName)+'</span></div><div class="info-item"><label>PO Number</label><span>'+esc(T.poNo)+'</span></div><div class="info-item"><label>Invoice No</label><span>'+esc(T.invoiceNumber)+'</span></div><div class="info-item"><label>Invoice Date</label><span>'+esc(T.invoiceDate)+'</span></div><div class="info-item"><label>Due Date</label><span>'+esc(T.dueDate)+'</span></div><div class="info-item"><label>Bundle</label><span>'+esc(T.bandel)+'</span></div><div class="info-item"><label>Invoice QTY</label><span>'+esc(T.invQty)+'</span></div><div class="info-item"><label>Pending QTY</label><span>'+esc(T.pendingQtyTop)+'</span></div><div class="info-item"><label>Login</label><span>'+esc(S.user?S.user.name:'')+'</span></div></div><table>'+tblHead+tblBody+'</table><div class="footer">Rows: '+rows.length+' | '+esc(title)+'</div></body></html>';
+  var cols=PDF_FULL_COLS_;
+  var tblHead='<tr>'+cols.map(function(c){return '<th style="border:1px solid #ddd;padding:5px 6px;background:#1a2130;color:#fff;font-size:9px;text-transform:uppercase;white-space:nowrap;">'+c.l+'</th>';}).join('')+'</tr>';
+  var tblBody=rows.map(function(r,i){
+    return '<tr style="'+(i%2===0?'':'background:#f9f9f6;')+'">'+cols.map(function(c){
+      if(c.k==='matRecImage'){
+        var lk=linksHtml_(r.matRecImage);
+        return '<td style="border:1px solid #ddd;padding:4px 6px;font-size:9px;white-space:nowrap;">'+(lk||'&mdash;')+'</td>';
+      }
+      return '<td style="border:1px solid #ddd;padding:4px 6px;font-size:9px;">'+esc(r[c.k]||'')+'</td>';
+    }).join('')+'</tr>';
+  }).join('');
+  var invoiceUploadLk=linksHtml_(T.invoiceUpload)||'&mdash;';
+  var ewayBillImgLk=linksHtml_(T.ewayBillImage)||'&mdash;';
+  var infoRows=[
+    ['Vendor',esc(T.vendorName),'PO Number',esc(T.poNo),'Invoice No',esc(T.invoiceNumber)],
+    ['Invoice Date',esc(T.invoiceDate),'Due Date',esc(T.dueDate),'Bundle',esc(T.bandel)],
+    ['Invoice QTY',esc(T.invQty),'Pending QTY (Total)',esc(T.pendingQtyTop),'Address & GST',esc(T.addressGst)],
+    ['Eway Bill',esc(T.ewayBill),'Eway Bill Image',ewayBillImgLk,'LR Bill Verified',esc(T.lrBillVerified)],
+    ['Invoice Upload',invoiceUploadLk,'Login',esc(S.user?S.user.name:''),'','']
+  ];
+  var infoHtml='<table style="width:100%;margin-bottom:14px;font-size:10px;">'+infoRows.map(function(row){
+    return '<tr>'+[0,2,4].map(function(idx){
+      return '<td style="padding:3px 6px;width:16.6%;vertical-align:top;"><label style="font-weight:700;color:#666;font-size:8px;text-transform:uppercase;display:block;">'+(row[idx]||'')+'</label><span style="color:#1a1712;font-weight:500;">'+(row[idx+1]||'&mdash;')+'</span></td>';
+    }).join('')+'</tr>';
+  }).join('')+'</table>';
+  return '<!DOCTYPE html><html><head><title>'+esc(title)+'</title><style>*{margin:0;padding:0;box-sizing:border-box;}@page{size:A4 landscape;margin:10mm;}@media print{@page{size:A4 landscape;}}body{font-family:Arial,sans-serif;padding:14px;color:#333;}.header{text-align:center;margin-bottom:14px;border-bottom:2px solid #b4862b;padding-bottom:10px;}.header h1{font-size:15px;color:#1a1712;margin-bottom:4px;}.header h2{font-size:11px;color:#666;font-weight:normal;}table{width:100%;border-collapse:collapse;}.footer{margin-top:14px;text-align:right;font-size:9px;color:#888;}</style></head><body><div class="header"><h1>'+esc(title)+'</h1><h2>Generated: '+fmtNow()+'</h2></div>'+infoHtml+'<table>'+tblHead+tblBody+'</table><div class="footer">Rows: '+rows.length+' | '+esc(title)+'</div></body></html>';
 }
 
 function openPdfPopup(title,topFields,rows,type){
