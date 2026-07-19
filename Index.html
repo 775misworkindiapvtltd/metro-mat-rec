@@ -428,7 +428,7 @@ var S = {
 };
 
 try{ S.darkMode=localStorage.getItem('matrec_dark_mode')==='true'; if(S.darkMode)document.documentElement.classList.add('dark'); }catch(e){}
-try{ var fs=parseInt(localStorage.getItem('matrec_font_size'),10); if(fs>=70&&fs<=130){S.fontSize=fs;} }catch(e){}
+try{ var fs=parseInt(localStorage.getItem('matrec_font_size'),10); if(fs>=70&&fs<=130){S.fontSize=fs;document.body.style.zoom=fs/100;} }catch(e){}
 
 /* ============================= APPS SCRIPT BRIDGE ============================= */
 function runServer(fnName,arg){
@@ -487,15 +487,6 @@ function showSavingOverlay(msg){
   el.innerHTML='<div class="saving-box"><span class="spinner"></span>'+esc(msg||'Saving...')+'</div>';
 }
 function hideSavingOverlay(){var el=document.getElementById('savingOverlay');if(el)el.remove();}
-
-function applyZoom(){
-  var sh=document.querySelector('.shell');
-  if(!sh)return;
-  var z=S.fontSize/100;
-  sh.style.zoom=z;
-  // Compensate height so zoomed content fills exactly 100vh
-  sh.style.height='calc(100vh / '+z+')';
-}
 
 function showConfirmPopup(){
   var el=document.getElementById('confirmPopup');
@@ -715,8 +706,6 @@ function render(){
   // Restore scroll position
   var newScrollEl=document.querySelector('.dt-scroll');
   if(newScrollEl){newScrollEl.scrollLeft=scrollLeft;newScrollEl.scrollTop=scrollTop;}
-  // Apply zoom to shell (not body - prevents height overflow)
-  if(S.fontSize!==100){applyZoom();}
 }
 
 loadAll();
@@ -1820,9 +1809,9 @@ document.addEventListener('click',function(e){
     S.darkMode=!S.darkMode;document.documentElement.classList.toggle('dark',S.darkMode);
     try{localStorage.setItem('matrec_dark_mode',S.darkMode?'true':'false');}catch(ex){}render();return;
   }
-  if(a==='font-up'){S.fontSize=Math.min(130,S.fontSize+10);applyZoom();try{localStorage.setItem('matrec_font_size',String(S.fontSize));}catch(ex){}return;}
-  if(a==='font-down'){S.fontSize=Math.max(70,S.fontSize-10);applyZoom();try{localStorage.setItem('matrec_font_size',String(S.fontSize));}catch(ex){}return;}
-  if(a==='font-reset'){S.fontSize=100;applyZoom();try{localStorage.setItem('matrec_font_size','100');}catch(ex){}return;}
+  if(a==='font-up'){S.fontSize=Math.min(130,S.fontSize+10);document.body.style.zoom=(S.fontSize/100);try{localStorage.setItem('matrec_font_size',String(S.fontSize));}catch(ex){}return;}
+  if(a==='font-down'){S.fontSize=Math.max(70,S.fontSize-10);document.body.style.zoom=(S.fontSize/100);try{localStorage.setItem('matrec_font_size',String(S.fontSize));}catch(ex){}return;}
+  if(a==='font-reset'){S.fontSize=100;document.body.style.zoom=1;try{localStorage.setItem('matrec_font_size','100');}catch(ex){}return;}
   if(a==='nav'){S.page=el.getAttribute('data-page');S.matRecEntry=null;render();return;}
   if(a==='logout'){S.user=null;S.page='login';render();return;}
   if(a==='dt-refresh'){S.dt.filters={};S.dt.dateFilters={};S.dt.filterOpen=null;S.dt.page=1;S.globalSearch='';refreshData();return;}
