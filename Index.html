@@ -136,7 +136,7 @@ input,select,button{font-family:inherit;font-size:13px;}
 .topbar-welcome{font-size:11px;color:var(--ink-secondary);font-weight:500;}
 .topbar-welcome b{color:var(--ink);font-weight:600;}
 .avatar{width:28px;height:28px;border-radius:4px;background:linear-gradient(135deg,var(--accent),#C6952F);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk';font-weight:700;font-size:11px;flex:none;}
-.content{padding:2px 8px 2px;flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;}
+.content{padding:2px 8px 4px;flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;}
 
 
 .toast{position:fixed;top:16px;right:16px;z-index:100;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.12);display:flex;align-items:center;gap:10px;animation:toast-in .22s cubic-bezier(.2,.8,.4,1);background:var(--success-tint);color:var(--success);border:1px solid #BEE3C9;}
@@ -150,7 +150,7 @@ input,select,button{font-family:inherit;font-size:13px;}
 .dt-colmenu .h{font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:.08em;font-weight:700;margin-bottom:8px;}
 .dt-colmenu label{display:flex;align-items:center;gap:9px;font-size:12.5px;padding:5px 4px;cursor:pointer;border-radius:4px;}
 .dt-colmenu label:hover{background:var(--accent-tint2);}
-.dt-table-wrap{flex:1;min-height:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.dt-table-wrap{flex:1;min-height:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.04);margin-bottom:4px;}
 .dt-scroll{flex:1;overflow:auto;min-height:0;}
 table.dt{border-collapse:separate;border-spacing:0;table-layout:fixed;width:max-content;}
 table.dt thead th{position:sticky;top:0;background:#0F141B;color:#D6CFC0;z-index:4;padding:0;border-right:1px solid #1E2531;overflow:visible;}
@@ -180,7 +180,7 @@ table.dt tbody tr:hover td.sno-cell{background:var(--accent-tint);}
 .code-pill{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:11px;color:var(--accent-dark);background:var(--accent-tint);border-radius:5px;padding:3px 8px;display:inline-block;}
 .empty-state{padding:60px 20px;text-align:center;color:var(--muted);}
 .empty-state .big{font-family:'Space Grotesk',sans-serif;font-size:15px;color:var(--ink-secondary);margin-bottom:6px;font-weight:600;}
-.dt-pagination{display:flex;align-items:center;gap:14px;flex-wrap:wrap;flex:none;background:var(--surface);border-top:1px solid var(--line);padding:4px 12px;font-size:12px;color:var(--muted);font-weight:500;}
+.dt-pagination{display:flex;align-items:center;gap:14px;flex-wrap:wrap;flex:none;background:var(--surface);border-top:1px solid var(--line);padding:6px 12px;font-size:12px;color:var(--muted);font-weight:500;min-height:36px;}
 .dt-pagination .pp{display:flex;align-items:center;gap:8px;}
 .dt-pagination select{padding:5px 10px;border:1.5px solid var(--line);border-radius:4px;background:#fff;cursor:pointer;font-weight:600;}
 .dt-pagination .range-info{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--ink-secondary);font-weight:600;}
@@ -995,7 +995,7 @@ function renderMatRecAdd(){
   var transportCard='<div class="mat-card"><div class="mat-card-head"><span class="card-icon">\uD83D\uDE9A</span> TRANSPORT & VERIFICATION</div><div class="mat-card-body">'+
     '<div class="dropzone" data-dropzone="lrImage" id="dz-lr"><div class="dz-icon">\uD83D\uDDBC\uFE0F</div><div class="dz-text">LR Image (drag & drop)</div>'+(Array.isArray(T.lrImage)&&T.lrImage.length?'<div class="dz-file">'+T.lrImage.map(function(f,fi){return '<a class="click-link" href="'+esc(f.url||'#')+'" target="_blank" style="margin-right:6px;">'+(fi+1)+'</a>';}).join('')+'</div>':'')+'</div>'+
     '<div class="mat-top-field"><label>LR Verified</label><select data-mattop="lrBillVerified"><option value="">-- Select --</option><option value="Yes"'+(T.lrBillVerified==='Yes'?' selected':'')+'>Yes</option><option value="No"'+(T.lrBillVerified==='No'?' selected':'')+'>No</option><option value="Pending"'+(T.lrBillVerified==='Pending'?' selected':'')+'>Pending</option></select></div>'+
-    '<div class="mat-top-field"><label>E-Way Verification</label><select data-mattop="ewayBill"><option value="">-- Select --</option><option value="Verified"'+(T.ewayBill==='Verified'?' selected':'')+'>Verified</option><option value="Not Verified"'+(T.ewayBill==='Not Verified'?' selected':'')+'>Not Verified</option><option value="Pending"'+(T.ewayBill==='Pending'?' selected':'')+'>Pending</option><option value="N/A"'+(T.ewayBill==='N/A'?' selected':'')+'>N/A</option></select></div>'+
+    '<div class="mat-top-field"><label>E-Way Verification</label><select data-mattop="ewayBill"><option value="">-- Select --</option><option value="Yes"'+(T.ewayBill==='Yes'?' selected':'')+'>Yes</option><option value="Not Applicable"'+(T.ewayBill==='Not Applicable'?' selected':'')+'>Not Applicable</option></select></div>'+
     '<div class="mat-top-field"><label>E-Way Image</label><input type="text" data-mattop="ewayBillImage" value="'+esc(T.ewayBillImage)+'" placeholder="E-Way image ref" autocomplete="off"></div>'+
   '</div></div>';
 
