@@ -116,7 +116,7 @@ function mapUserAI(r) {
     name: String(pickAI(r, ['NAME', 'Name', 'name']) || '').trim(),
     id: String(pickAI(r, ['ID', 'Id', 'id', 'USER ID', 'User ID', 'LOGIN ID']) || '').trim(),
     password: String(pickAI(r, ['PASSWORD', 'Password', 'password', 'PASS', 'Pass']) || '').trim(),
-    matRecView: isYesAI(pickAI(r, ['MATERIAL RECEIVED VIEW ENTRY', 'MATERIAL RECEIVED VIEW'])),
+    matRecView: isYesAI(pickAI(r, ['MATERIAL RECEIVED VIEW ENTRY', 'MATERIAL RECEIVED VIEW', 'MATERRIAL RECEIVED VIEW ENTRY', 'MAT REC VIEW'])),
     matRecAdd:  isYesAI(pickAI(r, ['MATERIAL ENTRY ADD', 'MATERIAL ADD'])),
     poReceived: isYesAI(pickAI(r, ['PO RECEIVED', 'PO RECIEVED']))
   };
