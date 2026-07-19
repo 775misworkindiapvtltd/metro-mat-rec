@@ -204,7 +204,7 @@ table.dt tbody tr:hover td.sno-cell{background:var(--accent-tint);}
 .panel-foot{padding:4px 8px;border-top:1px solid var(--line-light);flex:none;display:flex;align-items:center;gap:8px;}
 .entry-scroll{flex:1;min-height:0;overflow:auto;}
 table.entry{border-collapse:separate;border-spacing:0;}
-table.entry thead th{background:#0F141B;color:#D6CFC0;font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:11px 10px;text-align:left;white-space:nowrap;font-weight:600;position:sticky;top:0;z-index:2;position:relative;}
+table.entry thead th{background:#0F141B;color:#D6CFC0;font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:11px 10px;text-align:left;white-space:normal;word-wrap:break-word;overflow-wrap:break-word;font-weight:600;position:sticky;top:0;z-index:2;position:relative;line-height:1.3;}
 table.entry thead th .eresize{position:absolute;right:0;top:0;bottom:0;width:6px;cursor:col-resize;z-index:3;}
 table.entry thead th .eresize:hover{background:rgba(180,134,43,.5);}
 table.entry tbody td{padding:4px 5px;border-bottom:1px solid var(--line-light);vertical-align:middle;}
@@ -1195,9 +1195,11 @@ function openPdfPopup(title,topFields,rows,type){
     '.footer{margin-top:20px;text-align:right;font-size:10px;color:#888;}'+
     '.print-btn{position:fixed;top:10px;right:10px;padding:8px 16px;background:#b4862b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600;font-size:12px;}'+
     '.print-btn:hover{background:#8c6720;}'+
-    '@media print{.print-btn{display:none !important;}}'+
+    '.save-status{position:fixed;top:10px;left:10px;padding:6px 12px;background:#e5f5ea;color:#2e7d46;border-radius:4px;font-size:11px;font-weight:600;}'+
+    '@media print{.print-btn,.save-status{display:none !important;}}'+
     '</style></head><body>'+
     '<button class="print-btn" onclick="window.print()">Print / Download PDF</button>'+
+    '<div class="save-status" id="pdfSaveStatus">Saving to Drive...</div>'+
     '<div class="header"><h1>'+esc(title)+'</h1><h2>Generated: '+fmtNow()+'</h2></div>'+
     '<div class="info-grid">'+
       '<div class="info-item"><label>Vendor</label><span>'+esc(T.vendorName)+'</span></div>'+
@@ -1214,9 +1216,33 @@ function openPdfPopup(title,topFields,rows,type){
     '<div class="footer">Rows: '+rows.length+' | '+esc(title)+'</div>'+
     '</body></html>';
 
+  // Open popup for preview
   var win=window.open('','_blank','width=900,height=700');
   if(win){win.document.write(html);win.document.close();}
   else{showToast('Popup blocked! Allow popups for this site.',true);}
+
+  // Save PDF to Google Drive in background
+  var fileName=type+'_'+String(T.poNo||'PO').replace(/[^a-zA-Z0-9]/g,'_')+'_'+fmtNow().replace(/[: ]/g,'_');
+  runServer('savePdfToDriveAI',{htmlContent:html,fileName:fileName}).then(function(res){
+    if(res&&res.status==='ok'){
+      showToast('PDF saved to Drive',false);
+      // Save link to sheet
+      runServer('savePdfLinkToSheetAI',{pdfUrl:res.url,poNo:T.poNo,timestamp:fmtNow(),type:type}).catch(function(e){});
+      // Update popup status
+      if(win&&!win.closed){
+        var statusEl=win.document.getElementById('pdfSaveStatus');
+        if(statusEl){statusEl.textContent='\u2713 Saved to Drive';statusEl.style.background='#e5f5ea';}
+      }
+    } else {
+      showToast('PDF save failed: '+(res?res.message:'unknown'),true);
+      if(win&&!win.closed){
+        var statusEl=win.document.getElementById('pdfSaveStatus');
+        if(statusEl){statusEl.textContent='\u2717 Save failed';statusEl.style.background='#fbeae9';statusEl.style.color='#c4291c';}
+      }
+    }
+  }).catch(function(err){
+    showToast('PDF save error: '+err.message,true);
+  });
 }
 
 

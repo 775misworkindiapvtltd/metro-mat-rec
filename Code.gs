@@ -439,3 +439,95 @@ function debugPoHeadersAI() {
   Logger.log('PO RECIEVED total rows: ' + data.length);
   Logger.log('Headers: ' + JSON.stringify(data[0].map(function(h,i){return 'Col'+(i+1)+':['+String(h).replace(/\s+/g,' ').trim()+']';})));
 }
+
+// ===== PDF SAVE TO GOOGLE DRIVE =====
+// Reads folder ID from DROPDOWN sheet C2
+// Generates PDF from HTML content, saves to folder, returns link
+function savePdfToDriveAI(payload) {
+  try {
+    if (!payload || !payload.htmlContent || !payload.fileName) {
+      return { status: 'error', message: 'Missing htmlContent or fileName' };
+    }
+    
+    // Get folder ID from DROPDOWN sheet C2
+    var ss = getSSAI();
+    var folderId = '';
+    try {
+      var ddSh = ss.getSheetByName('DROPDOWN');
+      if (!ddSh) {
+        var allSheets = ss.getSheets().map(function(s){return s.getName();});
+        for (var i = 0; i < allSheets.length; i++) {
+          if (allSheets[i].toUpperCase().replace(/\s+/g,'') === 'DROPDOWN') {
+            ddSh = ss.getSheetByName(allSheets[i]); break;
+          }
+        }
+      }
+      if (ddSh) {
+        folderId = String(ddSh.getRange('C2').getValue() || '').trim();
+      }
+    } catch(e) {}
+    
+    if (!folderId) {
+      return { status: 'error', message: 'Folder ID not found in DROPDOWN sheet C2. Please add folder ID.' };
+    }
+    
+    // Create PDF blob from HTML
+    var blob = Utilities.newBlob(payload.htmlContent, 'text/html', 'temp.html');
+    var pdfBlob = blob.getAs('application/pdf').setName(payload.fileName + '.pdf');
+    
+    // Save to folder
+    var folder = DriveApp.getFolderById(folderId);
+    var file = folder.createFile(pdfBlob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    var fileUrl = file.getUrl();
+    
+    return { status: 'ok', url: fileUrl, fileId: file.getId() };
+  } catch (err) {
+    return { status: 'error', message: err.message };
+  }
+}
+
+// Save PDF link to MAT REC RESPONSES (appends to last column or specific column)
+function savePdfLinkToSheetAI(payload) {
+  try {
+    if (!payload || !payload.pdfUrl || !payload.poNo) {
+      return { status: 'error', message: 'Missing data' };
+    }
+    var ss = getSSAI();
+    var sh = ss.getSheetByName(SHEETS_AI.matRecResp);
+    if (!sh) return { status: 'error', message: 'Sheet not found' };
+    
+    // Find rows with matching PO and timestamp, update PDF column
+    var data = sh.getDataRange().getValues();
+    var headers = data[0].map(function(h){return String(h).replace(/\s+/g,' ').trim().toUpperCase();});
+    
+    // Find or create PDF column
+    var pdfColIdx = headers.indexOf('PDF LINK');
+    if (pdfColIdx < 0) {
+      pdfColIdx = headers.indexOf('PDF');
+      if (pdfColIdx < 0) {
+        // Add new column header
+        pdfColIdx = headers.length;
+        sh.getRange(1, pdfColIdx + 1).setValue('PDF LINK');
+      }
+    }
+    
+    // Find last rows with this PO + timestamp and set PDF link
+    var ts = payload.timestamp || '';
+    var poNo = payload.poNo || '';
+    for (var r = data.length - 1; r >= 1; r--) {
+      var rowPo = String(data[r][1] || '').trim(); // Column B = PO NO
+      if (rowPo === poNo) {
+        var rowTs = String(data[r][0] || '').trim();
+        if (!ts || rowTs === ts) {
+          sh.getRange(r + 1, pdfColIdx + 1).setValue(payload.pdfUrl);
+          if (ts) break; // If timestamp specified, only update that specific batch
+        }
+      }
+    }
+    
+    return { status: 'ok' };
+  } catch (err) {
+    return { status: 'error', message: err.message };
+  }
+}
