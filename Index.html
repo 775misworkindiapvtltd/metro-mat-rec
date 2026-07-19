@@ -410,6 +410,7 @@ var S = {
   matRecResp:[],
   poReceived:[],
   dropdownBrands:[],
+  obPrefix:'',
   toast:null, loginError:'',
   dt:dtState(),
   dtPo:dtState(),
@@ -588,7 +589,7 @@ async function doLogin(id,pw){
     var perms={matRecView:S.user.matRecView,matRecAdd:S.user.matRecAdd,matRecEdit:S.user.matRecEdit,poReceived:S.user.poReceived};
     var data=await runServer('getBootstrapDataAI',perms);
     if(data){ S.matRecResp=data.matRecResp||[]; S.poReceived=data.poReceived||[]; }
-    try{ var dd=await runServer('getDropdownDataAI'); if(dd&&dd.brands) S.dropdownBrands=dd.brands; }catch(e){}
+    try{ var dd=await runServer('getDropdownDataAI'); if(dd&&dd.brands) S.dropdownBrands=dd.brands; if(dd&&dd.obPrefix) S.obPrefix=dd.obPrefix; }catch(e){}
     await loadColWidthsFromServer();
     S.syncing=false;
     console.log('[LOGIN] Data loaded: matRecResp='+S.matRecResp.length+', poReceived='+S.poReceived.length+', brands='+S.dropdownBrands.length);
@@ -1037,10 +1038,6 @@ function getAlreadyReceived(poNo,vendorName,itemName){
 
 /* Get next outward batch number from DROPDOWN sheet B2 prefix + auto-increment */
 function getNextOutwardBatchNo(){
-  var prefix='OB';
-  if(S.dropdownBrands&&S.dropdownBrands.length>0){
-    /* prefix from B2 is handled via separate fetch if needed */
-  }
   var maxNum=0;
   S.matRecResp.forEach(function(r){
     var ob=String(r.outwardBatchNo||'');
@@ -1693,7 +1690,7 @@ document.addEventListener('input',function(e){
         var batchIdx=0;
         S.matRecEntry.rows.forEach(function(r,ri){
           if(parseFloat(r.recQty)>0){
-            r.outwardBatchNo=String(nextBatch+batchIdx);
+            r.outwardBatchNo=(S.obPrefix||'')+String(nextBatch+batchIdx);
             batchIdx++;
           } else {
             r.outwardBatchNo='';

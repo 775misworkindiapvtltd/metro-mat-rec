@@ -425,7 +425,25 @@ function saveMatRecEntriesAI(payload) {
     } // end else (new entry)
 
     // Calculate outward batch numbers server-side (for speed)
+    // Read starting series from DROPDOWN sheet B1
+    var obPrefix = '';
     var outwardBase = 1;
+    try {
+      var ddSh2 = ss.getSheetByName('DROPDOWN');
+      if (!ddSh2) {
+        var allSheets2 = ss.getSheets().map(function(s){return s.getName();});
+        for (var k = 0; k < allSheets2.length; k++) {
+          if (allSheets2[k].toUpperCase().replace(/\s+/g,'') === 'DROPDOWN') {
+            ddSh2 = ss.getSheetByName(allSheets2[k]); break;
+          }
+        }
+      }
+      if (ddSh2) {
+        var b1Val = String(ddSh2.getRange('B1').getValue() || '').trim();
+        if (b1Val) obPrefix = b1Val;
+      }
+    } catch(e3) {}
+    // Find max existing outward batch number and increment
     try {
       var lastRow2 = sh.getLastRow();
       if (lastRow2 > 1) {
@@ -448,7 +466,7 @@ function saveMatRecEntriesAI(payload) {
       if (existingOB && existingOB.indexOf('__AUTO__') !== 0) {
         outBatch = existingOB;
       } else if (parseFloat(r.recQty) > 0) {
-        outBatch = String(outwardBase + obIdx);
+        outBatch = obPrefix + String(outwardBase + obIdx);
         obIdx++;
       }
       // matRecImage: convert array of {url} to comma-separated plain URLs
@@ -497,8 +515,7 @@ function saveMatRecEntriesAI(payload) {
 
 function getDropdownDataAI() {
   var ss = getSSAI();
-  var result = { brands: [] };
-  // Try to read DROPDOWN sheet, column A for brands
+  var result = { brands: [], obPrefix: '' };
   try {
     var sh = ss.getSheetByName('DROPDOWN');
     if (!sh) {
@@ -512,6 +529,7 @@ function getDropdownDataAI() {
     if (sh) {
       var data = sh.getRange('A2:A').getValues();
       result.brands = data.filter(function(r){return r[0]!=='';}).map(function(r){return String(r[0]).trim();});
+      result.obPrefix = String(sh.getRange('B1').getValue() || '').trim();
     }
   } catch(e) { result.brands = []; }
   return result;
