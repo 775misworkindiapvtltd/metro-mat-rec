@@ -1092,7 +1092,8 @@ function renderMatRecAdd(){
       '<div class="entry-scroll"><table class="entry" style="table-layout:fixed;"><thead><tr>'+hdr+'</tr></thead><tbody>'+tbod+'</tbody></table></div>'+
       '<div class="panel-foot">'+
         '<span style="font-size:11px;color:var(--muted);">Saving as: <b style="color:var(--ink);">'+esc(S.user.name)+'</b></span>'+
-        '<button class="btn btn-ghost" data-action="pdf-punched" style="margin-left:auto;padding:7px 14px;font-size:11px;">\uD83D\uDCC4 PDF (Punched)</button>'+
+        '<button class="btn btn-ghost" data-action="reset-matrec" style="margin-left:auto;padding:7px 14px;font-size:11px;color:var(--danger);border-color:var(--danger);">\u21BA Reset Form</button>'+
+        '<button class="btn btn-ghost" data-action="pdf-punched" style="padding:7px 14px;font-size:11px;">\uD83D\uDCC4 PDF (Punched)</button>'+
         '<button class="btn btn-ghost" data-action="pdf-pending" style="padding:7px 14px;font-size:11px;">\uD83D\uDCC4 PDF (Pending)</button>'+
         '<button class="btn btn-gold" data-action="submit-matrec" '+(S.saving?'disabled':'')+'>'+(S.saving?'<span class="spinner" style="width:14px;height:14px;border-width:2px;"></span> Saving\u2026':'\u2714 Save Entry')+'</button>'+
       '</div>'+
@@ -1458,44 +1459,25 @@ document.addEventListener('focus',function(e){
   }
 },true);
 
-// On blur: if value not in list, clear it (restrict to list only)
+// On blur: reset input to match state (only list values allowed)
 document.addEventListener('blur',function(e){
   var el=e.target;
   if(!el.hasAttribute('data-ddtype'))return;
   var dtype=el.getAttribute('data-ddtype');
-  // Delay to allow click on dropdown item first (350ms)
   setTimeout(function(){
     if(!S.matRecEntry)return;
-    var val=(dtype==='vendor'?S.matRecEntry.topFields.vendorName:S.matRecEntry.topFields.poNo)||'';
-    val=val.trim();
-    if(!val){hideDDList(dtype);return;}
-    var items=[];
-    if(dtype==='vendor') items=getUniqueVendors();
-    else if(dtype==='po') items=getPOsForVendor(S.matRecEntry.topFields.vendorName);
-    var match=items.find(function(it){return it.toLowerCase()===val.toLowerCase();});
-    if(!match){
-      // Value not in list — clear it
-      if(dtype==='vendor'){S.matRecEntry.topFields.vendorName='';}
-      else if(dtype==='po'){S.matRecEntry.topFields.poNo='';}
-      render();
-    } else {
-      // Normalize to exact match from list
-      if(dtype==='vendor'&&S.matRecEntry.topFields.vendorName!==match){S.matRecEntry.topFields.vendorName=match;}
-      else if(dtype==='po'&&S.matRecEntry.topFields.poNo!==match){S.matRecEntry.topFields.poNo=match;}
-    }
+    // Reset input to the valid state value (user can't type custom)
+    if(dtype==='vendor') el.value=S.matRecEntry.topFields.vendorName||'';
+    else if(dtype==='po') el.value=S.matRecEntry.topFields.poNo||'';
     hideDDList(dtype);
-  },350);
+  },300);
 },true);
 
 document.addEventListener('input',function(e){
   var el=e.target;
-  // Typeable dropdown filtering
+  // Typeable dropdown filtering — only filter, don't save to state
   if(el.hasAttribute('data-ddtype')){
     var dtype=el.getAttribute('data-ddtype');
-    if(S.matRecEntry){
-      if(dtype==='vendor') S.matRecEntry.topFields.vendorName=el.value;
-      else if(dtype==='po') S.matRecEntry.topFields.poNo=el.value;
-    }
     showDDList(dtype);
     return;
   }
@@ -1639,6 +1621,7 @@ document.addEventListener('click',function(e){
   if(a==='del-last-matrow'){if(S.matRecEntry&&S.matRecEntry.rows.length>1){S.matRecEntry.rows.pop();render();}return;}
   if(a==='del-matrow'){if(S.matRecEntry){var idx=parseInt(el.getAttribute('data-i'),10);S.matRecEntry.rows.splice(idx,1);if(!S.matRecEntry.rows.length)S.matRecEntry.rows.push(freshMatRecRow());render();}return;}
   if(a==='submit-matrec'){submitMatRec();return;}
+  if(a==='reset-matrec'){if(S.matRecEntry&&confirm('Reset form? All entered data will be cleared.')){S.matRecEntry=freshMatRecEntry();render();}return;}
   if(a==='pdf-punched'){generatePdfPunched();return;}
   if(a==='pdf-pending'){generatePdfPending();return;}
   if(a==='sort'){var c=el.getAttribute('data-col');var st=S.dt;if(st.sort===c)st.dir*=-1;else{st.sort=c;st.dir=1;}st.page=1;render();return;}

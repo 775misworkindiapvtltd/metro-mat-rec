@@ -384,6 +384,24 @@ function saveMatRecEntriesAI(payload) {
     var ts = fmtTimestampAI(now);
     var loginName = payload.loginName || '';
 
+    // Generate unique MAT-REC number (incremental, same for all items in this batch)
+    var matRecNo = 'MAT-REC-00001';
+    try {
+      var lastRow = sh.getLastRow();
+      if (lastRow > 1) {
+        // Check last column (col 33) for existing MAT-REC numbers
+        var lastCol = 33;
+        var existingNos = sh.getRange(2, lastCol, lastRow - 1, 1).getValues();
+        var maxNum = 0;
+        existingNos.forEach(function(row) {
+          var val = String(row[0] || '');
+          var m = val.match(/MAT-REC-(\d+)/);
+          if (m) { var n = parseInt(m[1], 10); if (n > maxNum) maxNum = n; }
+        });
+        matRecNo = 'MAT-REC-' + String(maxNum + 1).padStart(5, '0');
+      }
+    } catch(e) { /* fallback to 00001 */ }
+
     var dataRows = rows.map(function (r) {
       return [
         ts, top.poNo||'', top.invoiceUpload||'', top.vendorName||'', top.pendingQtyTop||'',
@@ -393,12 +411,12 @@ function saveMatRecEntriesAI(payload) {
         r.pendingQty||'', r.recQty||'', r.cancelQty||'', r.poRate||'',
         r.size||'', r.unit||'', r.invoiceRate||'', r.inwardBatchNo||'',
         r.grossWeight||'', r.remarks||'', r.newUniqueNo||'', r.outwardBatchNo||'',
-        r.matRecImage||'', loginName
+        r.matRecImage||'', loginName, matRecNo
       ];
     });
 
-    sh.getRange(sh.getLastRow() + 1, 1, dataRows.length, 32).setValues(dataRows);
-    return { status: 'ok', saved: dataRows.length };
+    sh.getRange(sh.getLastRow() + 1, 1, dataRows.length, 33).setValues(dataRows);
+    return { status: 'ok', saved: dataRows.length, matRecNo: matRecNo };
   } catch (err) {
     return { status: 'error', message: err.message };
   } finally {
