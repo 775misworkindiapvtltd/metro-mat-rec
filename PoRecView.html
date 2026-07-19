@@ -43,7 +43,7 @@ function renderPoRecTable(){
   var hasActiveFilters=Object.values(st.filters).some(function(v){return !!v;})||Object.keys(st.dateFilters||{}).length>0||!!S.globalSearchPo;
 
 
-  var snoW=60;
+  var snoW=38;
   var snoTh='<th class="sno-col" style="width:'+snoW+'px;min-width:'+snoW+'px;max-width:'+snoW+'px;"><div class="th-inner"><div class="th-row"><span class="th-label no-sort">S.No</span></div></div></th>';
 
   var hdr=snoTh+visCols.map(function(c){
