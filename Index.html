@@ -107,13 +107,13 @@ input,select,button{font-family:inherit;font-size:13px;}
 .sidebar .brand{padding:10px 8px;border-bottom:1px solid var(--sidebar-line);display:flex;align-items:center;justify-content:center;}
 .sidebar .brand-icon{width:32px;height:32px;border-radius:6px;background:linear-gradient(135deg,var(--accent),#C6952F);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk';font-weight:700;font-size:13px;}
 .sidebar .nav{flex:1;padding:8px 6px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;}
-.sidebar .nav-item{display:flex;align-items:center;gap:10px;padding:8px 8px;border-radius:6px;cursor:pointer;transition:background .12s;color:#8E887D;position:relative;white-space:nowrap;overflow:hidden;}
+.sidebar .nav-item{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;border-radius:6px;cursor:pointer;transition:background .12s;color:#8E887D;position:relative;white-space:nowrap;overflow:hidden;}
 .sidebar .nav-item:hover{background:var(--sidebar-hover);color:#E8E0D0;}
 .sidebar .nav-item.active{background:var(--sidebar-active);color:#F0EAD8;}
 .sidebar .nav-item.active::after{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:18px;background:var(--accent);border-radius:0 3px 3px 0;}
 .sidebar .nav-item svg{width:18px;height:18px;flex:none;}
-.sidebar .nav-item .nav-label{font-size:11px;font-weight:500;opacity:0;transition:opacity .2s;pointer-events:none;}
-.sidebar.expanded .nav-item .nav-label{opacity:1;pointer-events:auto;}
+.sidebar .nav-item .nav-label{font-size:8px;font-weight:600;opacity:1;text-align:center;line-height:1.1;color:inherit;letter-spacing:.02em;}
+.sidebar.expanded .nav-item .nav-label{font-size:11px;font-weight:500;}
 .sidebar-foot{padding:8px 6px 8px;border-top:1px solid var(--sidebar-line);display:flex;justify-content:center;flex:none;}
 .logout-btn{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;color:#8E887D;transition:all .12s;}
 .logout-btn:hover{background:var(--sidebar-hover);color:#E8E0D0;}
@@ -592,8 +592,8 @@ function renderShell(inner){
     '<div class="'+sidebarCls+'" data-action="toggle-sidebar">'+
       '<div class="brand"><div class="brand-icon">MR</div></div>'+
       '<div class="nav">'+
-        ((S.user.matRecView||S.user.matRecAdd)?'<div class="nav-item '+(S.page==='matRecView'||S.page==='matRecAdd'?'active':'')+'" data-action="nav" data-page="matRecView">'+matIcon+'<span class="nav-label">Material Rec</span></div>':'')+
-        (S.user.poReceived?'<div class="nav-item '+(S.page==='poRecView'?'active':'')+'" data-action="nav" data-page="poRecView">'+poIcon+'<span class="nav-label">PO Received</span></div>':'')+
+        ((S.user.matRecView||S.user.matRecAdd)?'<div class="nav-item '+(S.page==='matRecView'||S.page==='matRecAdd'?'active':'')+'" data-action="nav" data-page="matRecView">'+matIcon+'<span class="nav-label">Mat Rec</span></div>':'')+
+        (S.user.poReceived?'<div class="nav-item '+(S.page==='poRecView'?'active':'')+'" data-action="nav" data-page="poRecView">'+poIcon+'<span class="nav-label">PO Rec</span></div>':'')+
       '</div>'+
       '<div class="sidebar-foot"><div class="logout-btn" data-action="logout" title="Sign Out">'+logoutIcon+'</div></div>'+
     '</div>'+
