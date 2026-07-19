@@ -389,9 +389,9 @@ function saveMatRecEntriesAI(payload) {
     try {
       var lastRow = sh.getLastRow();
       if (lastRow > 1) {
-        // Check last column (col 33) for existing MAT-REC numbers
-        var lastCol = 33;
-        var existingNos = sh.getRange(2, lastCol, lastRow - 1, 1).getValues();
+        // Check col 35 (AI) for existing MAT-REC numbers
+        var matRecCol = 35;
+        var existingNos = sh.getRange(2, matRecCol, lastRow - 1, 1).getValues();
         var maxNum = 0;
         existingNos.forEach(function(row) {
           var val = String(row[0] || '');
@@ -411,12 +411,12 @@ function saveMatRecEntriesAI(payload) {
         r.pendingQty||'', r.recQty||'', r.cancelQty||'', r.poRate||'',
         r.size||'', r.unit||'', r.invoiceRate||'', r.inwardBatchNo||'',
         r.grossWeight||'', r.remarks||'', r.newUniqueNo||'', r.outwardBatchNo||'',
-        r.matRecImage||'', loginName, matRecNo
+        r.matRecImage||'', loginName, '', '', matRecNo
       ];
     });
 
-    sh.getRange(sh.getLastRow() + 1, 1, dataRows.length, 33).setValues(dataRows);
-    return { status: 'ok', saved: dataRows.length, matRecNo: matRecNo };
+    sh.getRange(sh.getLastRow() + 1, 1, dataRows.length, 35).setValues(dataRows);
+    return { status: 'ok', saved: dataRows.length, matRecNo: matRecNo, startRow: sh.getLastRow() - dataRows.length + 1 };
   } catch (err) {
     return { status: 'error', message: err.message };
   } finally {
@@ -538,7 +538,8 @@ function savePdfToDriveAI(payload) {
   }
 }
 
-// Save PDF link to MAT REC RESPONSES (appends to last column or specific column)
+// Save PDF link to MAT REC RESPONSES at specific columns
+// type='punched' → col 33 (AG), type='pending' → col 34 (AH)
 function savePdfLinkToSheetAI(payload) {
   try {
     if (!payload || !payload.pdfUrl || !payload.poNo) {
@@ -548,31 +549,21 @@ function savePdfLinkToSheetAI(payload) {
     var sh = ss.getSheetByName(SHEETS_AI.matRecResp);
     if (!sh) return { status: 'error', message: 'Sheet not found' };
     
-    // Find rows with matching PO and timestamp, update PDF column
-    var data = sh.getDataRange().getValues();
-    var headers = data[0].map(function(h){return String(h).replace(/\s+/g,' ').trim().toUpperCase();});
+    // Determine column based on PDF type
+    var pdfCol = 33; // AG = REC QTY PDF (punched)
+    if (payload.type === 'pending') pdfCol = 34; // AH = PENDING QTY PDF
     
-    // Find or create PDF column
-    var pdfColIdx = headers.indexOf('PDF LINK');
-    if (pdfColIdx < 0) {
-      pdfColIdx = headers.indexOf('PDF');
-      if (pdfColIdx < 0) {
-        // Add new column header
-        pdfColIdx = headers.length;
-        sh.getRange(1, pdfColIdx + 1).setValue('PDF LINK');
-      }
-    }
-    
-    // Find last rows with this PO + timestamp and set PDF link
-    var ts = payload.timestamp || '';
-    var poNo = payload.poNo || '';
-    for (var r = data.length - 1; r >= 1; r--) {
-      var rowPo = String(data[r][1] || '').trim(); // Column B = PO NO
-      if (rowPo === poNo) {
-        var rowTs = String(data[r][0] || '').trim();
-        if (!ts || rowTs === ts) {
-          sh.getRange(r + 1, pdfColIdx + 1).setValue(payload.pdfUrl);
-          if (ts) break; // If timestamp specified, only update that specific batch
+    // Find rows with matching MAT-REC number and set PDF link
+    var matRecNo = payload.matRecNo || '';
+    if (matRecNo) {
+      var lastRow = sh.getLastRow();
+      if (lastRow > 1) {
+        var aiCol = 35; // AI column has MAT-REC number
+        var matRecNos = sh.getRange(2, aiCol, lastRow - 1, 1).getValues();
+        for (var r = 0; r < matRecNos.length; r++) {
+          if (String(matRecNos[r][0] || '').trim() === matRecNo) {
+            sh.getRange(r + 2, pdfCol).setValue(payload.pdfUrl);
+          }
         }
       }
     }

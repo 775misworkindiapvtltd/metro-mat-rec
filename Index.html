@@ -412,7 +412,8 @@ var S = {
   entryWidths:{},
   globalSearch:'',
   globalSearchPo:'',
-  darkMode:false, fontSize:100
+  darkMode:false, fontSize:100,
+  lastMatRecNo:''
 };
 
 try{ S.darkMode=localStorage.getItem('matrec_dark_mode')==='true'; if(S.darkMode)document.documentElement.classList.add('dark'); }catch(e){}
@@ -1080,6 +1081,7 @@ function renderMatRecAdd(){
       {k:'inwardBatchNo',label:'Inward Batch No',w:140},
       {k:'grossWeight',label:'Gross Weight',w:110,num:true},
       {k:'remarks',label:'Remarks',w:180,type:'textarea'},
+      {k:'newUniqueNo',label:'New Unique No',w:140,ro:true},
       {k:'outwardBatchNo',label:'Outward Batch No',w:140,ro:true},
       {k:'matRecImage',label:'Mat Rec Image',w:120,type:'upload'}
     ];
@@ -1189,7 +1191,8 @@ async function submitMatRec(){
       S.matRecResp.push(Object.assign({},T,r,{timestamp:ts,loginName:S.user.name||S.user.id}));
     });
     S.matRecEntry=null;S.page='matRecView';
-    showToast('Saved '+result.saved+' material received row(s).',false);
+    S.lastMatRecNo=result.matRecNo||'';
+    showToast('Saved '+result.saved+' material received row(s). ('+S.lastMatRecNo+')',false);
   }catch(err){S.saving=false;hideSavingOverlay();showToast('Save failed: '+err.message,true);}
 }
 
@@ -1267,7 +1270,7 @@ function openPdfPopup(title,topFields,rows,type){
     if(res&&res.status==='ok'){
       showToast('PDF saved to Drive',false);
       // Save link to sheet
-      runServer('savePdfLinkToSheetAI',{pdfUrl:res.url,poNo:T.poNo,timestamp:fmtNow(),type:type}).catch(function(e){});
+      runServer('savePdfLinkToSheetAI',{pdfUrl:res.url,poNo:T.poNo,matRecNo:S.lastMatRecNo||'',type:type}).catch(function(e){});
       // Update popup status
       if(win&&!win.closed){
         var statusEl=win.document.getElementById('pdfSaveStatus');
