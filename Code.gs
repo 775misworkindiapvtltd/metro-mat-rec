@@ -159,6 +159,8 @@ function mapMatRecAI(rows) {
       newUniqueNo: fmtValueAI(r['NEW UNIQUE NO']),
       outwardBatchNo: fmtValueAI(r['OUTWARD BATCH NO']),
       matRecImage: fmtValueAI(r['MATRIAL REC IMAGE MULTIPLE IMAGE']),
+      recQtyPdf: fmtValueAI(pickAI(r, ['REC QTY', 'REC QTY PDF', 'REC QTY PDF LINK'])),
+      pendQtyPdf: fmtValueAI(pickAI(r, ['PEND QTY', 'PEND QTY PDF', 'PEND QTY PDF LINK'])),
       status: fmtValueAI(r['STATUS']),
       matRecNo: fmtValueAI(pickAI(r, ['MAT REC NO', 'MAT-REC NO', 'MAT-REC-NO', 'MATRECNO', 'MAT REC UNIQUE', 'MAT REC UNIQUE NO', 'MAT REC UNI'])),
       overallPdf: fmtValueAI(pickAI(r, ['OVERALL SUBMIT', 'OVERALL PDF', 'OVERALL PDF LINK'])),
@@ -553,8 +555,9 @@ function getMatRecForEditAI(matRecNo) {
   var rows = [];
   for (var i = 1; i < data.length; i++) {
     var rowMatRec = String(data[i][34] || '').trim();
+    var rowStatus = String(data[i][33] || '').trim().toUpperCase();
     var rowRecQty = String(data[i][19] || '').trim();
-    if (rowMatRec === matRecNo && rowRecQty !== '') {
+    if (rowMatRec === matRecNo && rowStatus === 'ACTIVE' && rowRecQty !== '') {
       rows.push({
         rowIndex: i + 1,
         timestamp: fmtValueAI(data[i][0]),

@@ -342,6 +342,9 @@ var MAT_REC_COLS=[
   {key:'remarks',label:'Remarks',width:180},
   {key:'newUniqueNo',label:'New Unique No',width:130,mono:true},
   {key:'outwardBatchNo',label:'Outward Batch No',width:130,mono:true},
+  {key:'matRecImage',label:'Mat Rec Image',width:130},
+  {key:'recQtyPdf',label:'REC QTY PDF',width:120},
+  {key:'pendQtyPdf',label:'PEND QTY PDF',width:120},
   {key:'invoiceNumber',label:'Invoice No',width:120},
   {key:'invoiceDate',label:'Invoice Date',width:110},
   {key:'addressGst',label:'Address & GST',width:150},
@@ -687,6 +690,10 @@ function renderShell(inner){
 /* ============================= RENDER (main) ============================= */
 function render(){
   var app=document.getElementById('app');
+  // Preserve scroll position of data table
+  var scrollEl=document.querySelector('.dt-scroll');
+  var scrollLeft=scrollEl?scrollEl.scrollLeft:0;
+  var scrollTop=scrollEl?scrollEl.scrollTop:0;
   if(!S.ready){app.innerHTML='<div class="loading-screen"><div class="spinner"></div><div>Loading...</div></div>';return;}
   if(S.loadError){app.innerHTML='<div class="login-wrap"><div class="login-card"><div class="login-top"><div class="login-eyebrow">Setup</div><h1>Load failed</h1></div><div class="login-body"><div class="login-error">'+esc(S.loadError)+'</div><button class="btn btn-gold btn-block" style="margin-top:14px;" data-action="dt-refresh">Retry</button></div></div></div>';return;}
   if(!S.user){app.innerHTML=renderLogin();return;}
@@ -696,6 +703,9 @@ function render(){
   else{inner=renderDataTable();}
   app.innerHTML=renderShell(inner);
   if(S.page==='matRecAdd')initMatRecDatePickers();
+  // Restore scroll position
+  var newScrollEl=document.querySelector('.dt-scroll');
+  if(newScrollEl){newScrollEl.scrollLeft=scrollLeft;newScrollEl.scrollTop=scrollTop;}
 }
 
 loadAll();
@@ -944,10 +954,15 @@ function openMatRecEdit(){
 
 function getUniqueMatRecNos(){
   var nos={};
+  var cancelOnly={};
   S.matRecResp.forEach(function(r){
     var mrn=String(r.matRecNo||'').trim();
-    if(mrn) nos[mrn]=true;
+    if(!mrn)return;
+    var status=String(r.status||'').trim().toUpperCase();
+    if(status==='ACTIVE'){nos[mrn]=true;}
+    else if(!nos[mrn]){cancelOnly[mrn]=true;}
   });
+  // Only return numbers that have at least one ACTIVE row
   return Object.keys(nos).sort().reverse();
 }
 
