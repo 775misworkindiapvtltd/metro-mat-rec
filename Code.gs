@@ -161,6 +161,7 @@ function mapMatRecAI(rows) {
       matRecImage: fmtValueAI(r['MATRIAL REC IMAGE MULTIPLE IMAGE']),
       status: fmtValueAI(r['STATUS']),
       matRecNo: fmtValueAI(pickAI(r, ['MAT REC NO', 'MAT-REC NO', 'MAT-REC-NO', 'MATRECNO', 'MAT REC UNIQUE', 'MAT REC UNIQUE NO', 'MAT REC UNI'])),
+      overallPdf: fmtValueAI(pickAI(r, ['OVERALL SUBMIT', 'OVERALL PDF', 'OVERALL PDF LINK'])),
       loginName: fmtValueAI(r['LOGIN NAME'] || r['LOGIN ID'] || '')
     };
   });
@@ -393,9 +394,14 @@ function saveMatRecEntriesAI(payload) {
     var loginName = payload.loginName || '';
 
     // Generate unique MAT-REC number (incremental, same for all items in this batch)
-    var matRecNo = 'MAT-REC-00001';
-    try {
-      var lastRow = sh.getLastRow();
+    // In edit mode, keep the SAME number
+    var matRecNo = '';
+    if (payload.editMatRecNo) {
+      matRecNo = payload.editMatRecNo;
+    } else {
+      matRecNo = 'MAT-REC-00001';
+      try {
+        var lastRow = sh.getLastRow();
       if (lastRow > 1) {
         // Check col 35 (AI) for existing MAT-REC numbers
         var matRecCol = 35;
@@ -409,6 +415,7 @@ function saveMatRecEntriesAI(payload) {
         matRecNo = 'MAT-REC-' + String(maxNum + 1).padStart(5, '0');
       }
     } catch(e) { /* fallback to 00001 */ }
+    } // end else (new entry)
 
     // Calculate outward batch numbers server-side (for speed)
     var outwardBase = 1;

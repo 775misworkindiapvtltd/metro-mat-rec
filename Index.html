@@ -347,8 +347,8 @@ var MAT_REC_COLS=[
   {key:'addressGst',label:'Address & GST',width:150},
   {key:'ewayBill',label:'Eway Bill',width:120},
   {key:'lrBillVerified',label:'LR Bill Verified',width:120},
-  {key:'status',label:'Status',width:90},
-  {key:'loginName',label:'Login Name',width:120}
+  {key:'matRecNo',label:'MAT REC NO',width:140,mono:true},
+  {key:'overallPdf',label:'Overall PDF',width:120}
 ];
 
 var PO_REC_COLS=[
@@ -764,7 +764,12 @@ function renderDataTable(){
   var bod=pageRows.length?pageRows.map(function(r,idx){
     var sno=si+idx+1;
     return '<tr><td class="sno-cell">'+sno+'</td>'+visCols.map(function(c){
-      var v=r[c.key]==null?'':r[c.key];
+      var v=r[c.key]==null?'':String(r[c.key]);
+      // Multiple HTTP URLs (comma separated) → multiple "Click Here" links
+      if(v&&v.indexOf('http')>=0){
+        var urls=v.split(',').filter(function(u){return u.trim().indexOf('http')===0;});
+        if(urls.length){return '<td>'+urls.map(function(u){return '<a class="click-link" href="'+esc(u.trim())+'" target="_blank">Click Here</a>';}).join(' ')+'</td>';}
+      }
       if(c.pill&&v) return '<td><span class="code-pill">'+esc(v)+'</span></td>';
       if(c.mono) return '<td style="font-family:\'JetBrains Mono\',monospace;font-size:11.5px;">'+esc(v)+'</td>';
       return '<td>'+esc(v)+'</td>';
@@ -1260,7 +1265,8 @@ async function submitMatRec(){
     // In edit mode, outwardBatchNo and newUniqueNo remain as loaded (unchanged)
 
     var result=await runServer('saveMatRecEntriesAI',{
-      topFields:T,rows:validRows,loginId:S.user.id,loginName:S.user.name||S.user.id
+      topFields:T,rows:validRows,loginId:S.user.id,loginName:S.user.name||S.user.id,
+      editMatRecNo:E.editMode?S.editMatRecNo:''
     });
     S.saving=false;hideSavingOverlay();
     if(result.status!=='ok'){showToast('Save failed: '+(result.message||'unknown'),true);return;}
