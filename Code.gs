@@ -297,6 +297,24 @@ function testBootstrapAI() {
   return 'OK: ' + result.poReceived.length + ' PO rows, ' + result.matRecResp.length + ' mat rows, JSON size: ' + jsonStr.length;
 }
 
+// ===== USER SETTINGS (column widths, per user, cross-browser) =====
+// Uses PropertiesService.getUserProperties() — saves per Google account, works across all browsers/devices.
+function saveUserSettingsAI(payload) {
+  try {
+    var key = 'colWidths_' + (payload.page || 'default');
+    PropertiesService.getUserProperties().setProperty(key, JSON.stringify(payload.widths || {}));
+    return { status: 'ok' };
+  } catch (e) { return { status: 'error', message: e.message }; }
+}
+
+function loadUserSettingsAI(payload) {
+  try {
+    var key = 'colWidths_' + (payload.page || 'default');
+    var raw = PropertiesService.getUserProperties().getProperty(key);
+    return { status: 'ok', widths: raw ? JSON.parse(raw) : {} };
+  } catch (e) { return { status: 'ok', widths: {} }; }
+}
+
 function saveMatRecEntriesAI(payload) {
   var lock = LockService.getScriptLock();
   lock.waitLock(15000);

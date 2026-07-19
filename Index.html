@@ -495,6 +495,7 @@ async function doLogin(id,pw){
     }
     // Re-pull permissions
     try{var fresh=await runServer('getUserPermissionsAI',S.user.id);if(fresh)S.user=Object.assign({},S.user,fresh);}catch(e){console.log('[DEBUG] getUserPermissions error:',e.message);}
+    await loadColWidthsFromServer();
     S.syncing=false;
     var miss=(data&&data.missingSheets)||[];
     var dbg=(data&&data.debugInfo)||[];
@@ -967,6 +968,27 @@ async function submitMatRec(){
   }catch(err){S.saving=false;hideSavingOverlay();showToast('Save failed: '+err.message,true);}
 }
 
+/* ============================= COLUMN WIDTH PERSISTENCE (cross-browser) ============================= */
+// Save column widths to server (per user, works on any device/browser)
+var saveWidthTimer=null;
+function saveColWidthsToServer(page,widths){
+  // Debounce: save 1 sec after last resize (don't spam server during drag)
+  clearTimeout(saveWidthTimer);
+  saveWidthTimer=setTimeout(function(){
+    runServer('saveUserSettingsAI',{page:page,widths:widths}).catch(function(e){console.log('[SAVE WIDTHS] error:',e.message);});
+  },1000);
+}
+
+// Load column widths from server on login
+async function loadColWidthsFromServer(){
+  try{
+    var matW=await runServer('loadUserSettingsAI',{page:'matRecView'});
+    if(matW&&matW.widths)S.dt.widths=matW.widths;
+    var poW=await runServer('loadUserSettingsAI',{page:'poRecView'});
+    if(poW&&poW.widths)S.dtPo.widths=poW.widths;
+  }catch(e){console.log('[LOAD WIDTHS] error:',e.message);}
+}
+
 /* ============================= DATE RANGE PICKER ============================= */
 var drState=null; // {tableId:'dt'|'dtPo', col, from:Date|null, to:Date|null, month1:Date, presetKey:null}
 var DR_PRESETS=[
@@ -1202,8 +1224,8 @@ document.addEventListener('mouseup',function(e){
   if(eResizeCtx){var nw=Math.max(30,Math.round(eResizeCtx.startW+(e.clientX-eResizeCtx.startX)));S.entryWidths[eResizeCtx.col]=nw;eResizeCtx=null;return;}
   if(!resizeCtx)return;
   var finalW=Math.max(60,Math.round(resizeCtx.startW+(e.clientX-resizeCtx.startX)));
-  if(resizeCtx.isPo){S.dtPo.widths[resizeCtx.c]=finalW;}
-  else{S.dt.widths[resizeCtx.c]=finalW;}
+  if(resizeCtx.isPo){S.dtPo.widths[resizeCtx.c]=finalW;saveColWidthsToServer('poRecView',S.dtPo.widths);}
+  else{S.dt.widths[resizeCtx.c]=finalW;saveColWidthsToServer('matRecView',S.dt.widths);}
   resizeCtx.el.classList.remove('active');resizeCtx=null;render();
 });
 
