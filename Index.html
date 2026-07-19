@@ -220,11 +220,11 @@ table.entry select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 
 /* Material Rec Add - Card-style sections */
 .mat-add-container{flex:1;min-height:0;overflow-y:auto;padding:8px 0;}
 .mat-cards-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
-.mat-card{border:1px solid var(--line);border-radius:8px;background:var(--surface);overflow:hidden;}
+.mat-card{border:1px solid var(--line);border-radius:8px;background:var(--surface);overflow:visible;}
 .mat-card.full-width{grid-column:1/-1;}
 .mat-card-head{padding:8px 14px;font-size:11px;font-weight:700;color:var(--ink-secondary);border-bottom:1px solid var(--line-light);background:var(--accent-tint2);display:flex;align-items:center;gap:8px;letter-spacing:.02em;}
 .mat-card-head .card-icon{font-size:14px;}
-.mat-card-body{padding:12px 14px;display:flex;flex-wrap:wrap;gap:10px 16px;}
+.mat-card-body{padding:12px 14px;display:flex;flex-wrap:wrap;gap:10px 16px;overflow:visible;position:relative;}
 .mat-top-field{display:flex;flex-direction:column;gap:4px;min-width:140px;max-width:240px;flex:1;}
 .mat-top-field label{font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
 .mat-top-field input,.mat-top-field select{padding:8px 10px;border:1.5px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);font-size:12px;transition:border .15s;}
@@ -234,7 +234,7 @@ table.entry select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 
 /* Typeable dropdown */
 .typeable-dd{position:relative;}
 .typeable-dd input{width:100%;}
-.typeable-dd .dd-list{position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--surface);border:1.5px solid var(--line);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:30;display:none;}
+.typeable-dd .dd-list{position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--surface);border:1.5px solid var(--line);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:50;display:none;margin-top:2px;}
 .typeable-dd .dd-list.open{display:block;}
 .typeable-dd .dd-item{padding:8px 12px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--line-light);}
 .typeable-dd .dd-item:hover{background:var(--accent-tint2);}
@@ -501,12 +501,16 @@ async function doLogin(id,pw){
     if(!result||!result.success){
       S.loginError=result?result.error:'Login failed.';render();return;
     }
+    // Show success toast ON LOGIN PAGE first
     S.user=result.user;
-    showToast('Login Successful \u2713 Welcome, '+S.user.name,false);
+    S.loginError='';
+    S.toast={msg:'Login Successful \u2713 Welcome, '+S.user.name,isErr:false};
+    render(); // re-render login page WITH green toast visible
+    // Wait 800ms so user sees the toast, then navigate
+    await new Promise(function(r){setTimeout(r,800);});
     if(S.user.matRecView||S.user.matRecAdd) S.page='matRecView';
     else if(S.user.poReceived) S.page='poRecView';
     else S.page='matRecView';
-    S.loginError='';
     render();
     S.syncing=true;render();
     var perms={matRecView:S.user.matRecView,matRecAdd:S.user.matRecAdd,poReceived:S.user.poReceived};
@@ -861,7 +865,7 @@ function getUniqueVendors(){
   return Object.keys(vendors).sort();
 }
 
-/* Get PO numbers filtered by vendor */
+/* Get PO numbers filtered by vendor (if vendor empty, show ALL POs) */
 function getPOsForVendor(vendor){
   var pos={};
   var vLow=(vendor||'').toLowerCase();
@@ -1245,14 +1249,43 @@ function hideDDList(type){
 function selectDDItem(type,val){
   if(!S.matRecEntry)return;
   if(type==='vendor'){
+    var prevVendor=S.matRecEntry.topFields.vendorName;
     S.matRecEntry.topFields.vendorName=val;
-    S.matRecEntry.topFields.poNo='';
-    // Clear rows when vendor changes
-    S.matRecEntry.rows=[];
-    S.matRecEntry.topFields.pendingQtyTop='';
-    S.matRecEntry.showErrors=false;
+    // If vendor changed and there was already data filled, clear EVERYTHING
+    if(prevVendor&&prevVendor.toLowerCase()!==val.toLowerCase()){
+      S.matRecEntry.topFields.poNo='';
+      S.matRecEntry.topFields.invoiceNumber='';
+      S.matRecEntry.topFields.invoiceDate='';
+      S.matRecEntry.topFields.dueDate='';
+      S.matRecEntry.topFields.bandel='';
+      S.matRecEntry.topFields.invoiceUpload=[];
+      S.matRecEntry.topFields.lrImage=[];
+      S.matRecEntry.topFields.lrBillVerified='';
+      S.matRecEntry.topFields.ewayBill='';
+      S.matRecEntry.topFields.ewayBillImage='';
+      S.matRecEntry.topFields.addressGst='';
+      S.matRecEntry.topFields.invQty='';
+      S.matRecEntry.topFields.pendingQtyTop='';
+      S.matRecEntry.rows=[];
+      S.matRecEntry.showErrors=false;
+    } else {
+      S.matRecEntry.topFields.poNo='';
+      S.matRecEntry.rows=[];
+      S.matRecEntry.topFields.pendingQtyTop='';
+      S.matRecEntry.showErrors=false;
+    }
   } else if(type==='po'){
     S.matRecEntry.topFields.poNo=val;
+    // Auto-fill vendor from PO data if vendor is empty
+    if(!S.matRecEntry.topFields.vendorName){
+      var poRows=S.poReceived.filter(function(r){
+        return String(r.voucherNo||r.salesOrderNo||'').trim().toLowerCase()===val.toLowerCase();
+      });
+      if(poRows.length>0){
+        var vendor=String(poRows[0].supplier||poRows[0].buyerName||'').trim();
+        if(vendor) S.matRecEntry.topFields.vendorName=vendor;
+      }
+    }
     // Clear and re-fill rows when PO changes
     S.matRecEntry.rows=[];
     S.matRecEntry.showErrors=false;
