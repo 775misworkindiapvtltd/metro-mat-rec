@@ -1226,6 +1226,9 @@ document.addEventListener('click',function(e){
 var ddOpenType=null; // 'vendor' or 'po'
 
 function showDDList(type){
+  // Close ALL other dropdowns first
+  if(type!=='vendor') hideDDList('vendor');
+  if(type!=='po') hideDDList('po');
   var listEl=document.getElementById('ddlist-'+type);
   if(!listEl)return;
   var inputEl=listEl.parentElement.querySelector('input');
@@ -1241,7 +1244,7 @@ function showDDList(type){
     var rect=inputEl.getBoundingClientRect();
     listEl.style.top=(rect.bottom+2)+'px';
     listEl.style.left=rect.left+'px';
-    listEl.style.width=Math.max(rect.width,200)+'px';
+    listEl.style.width=Math.max(rect.width,220)+'px';
   }
   listEl.classList.add('open');
   ddOpenType=type;
