@@ -561,6 +561,7 @@ async function doLogin(id,pw){
     }
     // Show success toast ON LOGIN PAGE first
     S.user=result.user;
+    console.log('[LOGIN] User permissions:', JSON.stringify({matRecView:S.user.matRecView,matRecAdd:S.user.matRecAdd,matRecEdit:S.user.matRecEdit,poReceived:S.user.poReceived}));
     S.loginError='';
     S.toast={msg:'Login Successful \u2713 Welcome, '+S.user.name,isErr:false};
     render(); // re-render login page WITH green toast visible
@@ -577,7 +578,9 @@ async function doLogin(id,pw){
     if(data){ S.matRecResp=data.matRecResp||[]; S.poReceived=data.poReceived||[]; }
     try{ var dd=await runServer('getDropdownDataAI'); if(dd&&dd.brands) S.dropdownBrands=dd.brands; }catch(e){}
     await loadColWidthsFromServer();
-    S.syncing=false;render();
+    S.syncing=false;
+    console.log('[LOGIN] Data loaded: matRecResp='+S.matRecResp.length+', poReceived='+S.poReceived.length+', brands='+S.dropdownBrands.length);
+    render();
   }catch(err){
     S.loginError='Login failed: '+err.message;S.syncing=false;render();
   }
