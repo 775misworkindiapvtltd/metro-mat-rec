@@ -198,22 +198,29 @@ async function loadAll(){
   S.ready=false;render();
   try{
     // Server just confirms it's ready — NO passwords sent to client
-    await runServer('getLoginDataAI');
+    var resp=await runServer('getLoginDataAI');
+    console.log('[INIT] getLoginDataAI response:', JSON.stringify(resp));
     S.loadError='';
-  }catch(err){ S.loadError=err.message; }
+  }catch(err){
+    console.log('[INIT] getLoginDataAI FAILED:', err.message);
+    S.loadError=err.message;
+  }
   S.ready=true;render();startClock();
 }
 
 async function doLogin(id,pw){
   // SERVER-SIDE validation — password never stored in client state
   S.loginError='';render();
+  console.log('[LOGIN] Attempting login for id:', id);
   try{
     var result=await runServer('validateLoginAI',{id:id.trim(),password:pw});
+    console.log('[LOGIN] Server response:', JSON.stringify(result));
     if(!result||!result.success){
-      S.loginError=result?result.error:'Login failed.';render();return;
+      S.loginError=result?result.error:'Login failed. Server returned null.';render();return;
     }
     // result.user has NO password field (stripped server-side)
     S.user=result.user;S.loginError='';
+    console.log('[LOGIN] Success! User:', S.user.name, 'matRecView:', S.user.matRecView, 'matRecAdd:', S.user.matRecAdd);
     if(S.user.matRecView||S.user.matRecAdd) S.page='matRecView';
     else if(S.user.poReceived) S.page='poRecView';
     else S.page='matRecView';
@@ -226,7 +233,10 @@ async function doLogin(id,pw){
     S.syncing=false;
     if(S.matRecResp.length||S.poReceived.length){showToast('Loaded: '+S.matRecResp.length+' mat, '+S.poReceived.length+' PO rows.',false);}
     else{showToast('0 rows loaded.',true);}
-  }catch(err){S.loginError='Login failed: '+err.message;S.syncing=false;render();}
+  }catch(err){
+    console.log('[LOGIN] ERROR:', err.message);
+    S.loginError='Login failed: '+err.message;S.syncing=false;render();
+  }
 }
 
 async function refreshData(){
