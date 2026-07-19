@@ -1245,7 +1245,7 @@ function generatePdfOverall(){
   openPdfPopup('Material Received - Complete Entry',T,rows,'overall');
 }
 
-/* Auto-save PDF to Drive and link to sheet (runs in background) */
+/* Auto-save PDF to Drive and link to sheet (runs in background, NO toast) */
 function savePdfAndLink(title,topFields,rows,type,matRecNo){
   var html=buildPdfHtml(title,topFields,rows,type);
   var fileName=type+'_'+String(topFields.poNo||'PO').replace(/[^a-zA-Z0-9]/g,'_')+'_'+matRecNo;
@@ -1276,19 +1276,20 @@ function buildPdfHtml(title,topFields,rows,type){
 
 function openPdfPopup(title,topFields,rows,type){
   var html=buildPdfHtml(title,topFields,rows,type);
-  // Add print button to HTML for popup
   var printHtml=html.replace('</body>','<button style="position:fixed;top:10px;right:10px;padding:8px 16px;background:#b4862b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600;font-size:12px;" onclick="window.print()">Print / Download PDF</button></body>');
   var win=window.open('','_blank','width=900,height=700');
   if(win){win.document.write(printHtml);win.document.close();}
   else{showToast('Popup blocked! Allow popups for this site.',true);}
-  // Also save to Drive
-  var fileName=type+'_'+String(topFields.poNo||'PO').replace(/[^a-zA-Z0-9]/g,'_')+'_'+fmtNow().replace(/[: ]/g,'_');
-  runServer('savePdfToDriveAI',{htmlContent:html,fileName:fileName}).then(function(res){
-    if(res&&res.status==='ok'){
-      showToast('PDF saved to Drive',false);
-      runServer('savePdfLinkToSheetAI',{pdfUrl:res.url,matRecNo:S.lastMatRecNo||'',type:type}).catch(function(e){});
-    }else{showToast('PDF save failed: '+(res?res.message:''),true);}
-  }).catch(function(e){showToast('PDF error: '+e.message,true);});
+  // Save to Drive only if data was already saved (matRecNo exists)
+  if(S.lastMatRecNo){
+    var fileName=type+'_'+String(topFields.poNo||'PO').replace(/[^a-zA-Z0-9]/g,'_')+'_'+S.lastMatRecNo;
+    runServer('savePdfToDriveAI',{htmlContent:html,fileName:fileName}).then(function(res){
+      if(res&&res.status==='ok'){
+        showToast('PDF saved to Drive',false);
+        runServer('savePdfLinkToSheetAI',{pdfUrl:res.url,matRecNo:S.lastMatRecNo,type:type}).catch(function(e){});
+      }
+    }).catch(function(e){});
+  }
 }
 
 
