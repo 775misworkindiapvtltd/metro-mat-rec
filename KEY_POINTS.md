@@ -154,6 +154,14 @@
 - **Pending PDF gating:** Pending PDF is generated ONLY when `pendingQtyTop` (Total Pending Qty, top-level sum across all rows) is greater than 0. If total is 0, no Pending PDF is generated/linked — even if some individual row still shows a leftover pendingQty.
 - Both client-side (`buildPdfHtml` — used for the in-form "PDF View" preview popup) and server-side (`buildPdfHtmlAI` — used in the auto-generate-on-save flow) were updated identically so preview and saved PDF always match.
 
+### PDF Column Widths & Margins (updated)
+- Table uses `table-layout:fixed` with explicit per-column `width:%` (sums to exactly 100%).
+- **Narrowed (4% each):** Pending QTY, REC QTY, Cancel QTY, PO Rate, Size, Unit, Invoice Rate, Inward Batch No, Gross Wt — these are short numeric-ish values, don't need much space.
+- **Normal (7% each):** Change Brand, Brand, Sales Order ID, Item Name, New Unique No, Outward Batch, Image.
+- **Widened (15%):** Remarks — the only free-text column, needs the most room.
+- **Headers:** bold (`font-weight:700`), wrap instead of truncating (`white-space:normal;word-wrap:break-word`) so narrow columns don't hide/cut header text.
+- **Page margin:** left/right margin reduced to `0.1in` (`@page{margin:10mm 0.1in;}`) to fit all 17 columns comfortably in landscape without overflow.
+
 ---
 
 ## 💾 SHEET COLUMN LAYOUT (37 columns saved)
