@@ -424,12 +424,12 @@ function saveMatRecEntriesAI(payload) {
     } catch(e) { /* fallback to 00001 */ }
     } // end else (new entry)
 
-    // Calculate outward batch numbers server-side (as a pure NUMBER, never a
-    // string-concatenated prefix+digits — that caused exponential digit growth,
-    // e.g. "1098474901" + "0884749..." producing garbage 19-digit values).
-    // Series starts from DROPDOWN sheet B1 (parsed as a number) and continues
-    // (increments) from whatever numeric value is already the MAX in column AD.
-    var obBase = 1;
+    // Calculate outward batch numbers server-side.
+    // DROPDOWN sheet B1 = string prefix (e.g. "CW"). The NUMERIC part after the
+    // prefix is what increments. We find the max numeric suffix from existing col AD
+    // values (stripping the known prefix first) and increment from there.
+    var obPrefix = '';
+    var outwardBase = 1;
     try {
       var ddSh2 = ss.getSheetByName('DROPDOWN');
       if (!ddSh2) {
@@ -441,20 +441,25 @@ function saveMatRecEntriesAI(payload) {
         }
       }
       if (ddSh2) {
-        var b1Raw = ddSh2.getRange('B1').getValue();
-        var b1Num = parseFloat(String(b1Raw == null ? '' : b1Raw).replace(/[^0-9.]/g, ''));
-        if (!isNaN(b1Num) && b1Num > 0) obBase = b1Num;
+        var b1Raw = String(ddSh2.getRange('B1').getValue() || '').trim();
+        if (b1Raw) obPrefix = b1Raw;
       }
     } catch (e3) {}
-    // Find max existing outward batch NUMBER already saved (numeric parse, NOT regex-on-string)
-    var outwardBase = obBase;
+    // Find max existing numeric suffix in column AD (strip the prefix first)
     try {
       var lastRow2 = sh.getLastRow();
       if (lastRow2 > 1) {
         var obCol = 30; // AD = outward batch no
         var obData = sh.getRange(2, obCol, lastRow2 - 1, 1).getValues();
+        var prefixLower = obPrefix.toLowerCase();
         obData.forEach(function(row) {
-          var n2 = parseFloat(row[0]);
+          var val = String(row[0] || '');
+          // Strip the known prefix to get the numeric part
+          var numPart = val;
+          if (prefixLower && val.toLowerCase().indexOf(prefixLower) === 0) {
+            numPart = val.substring(obPrefix.length);
+          }
+          var n2 = parseInt(numPart, 10);
           if (!isNaN(n2) && n2 >= outwardBase) outwardBase = n2 + 1;
         });
       }
@@ -462,17 +467,13 @@ function saveMatRecEntriesAI(payload) {
     var obIdx = 0;
 
     var dataRows = rows.map(function (r) {
-      // Assign outward batch number server-side — ALWAYS as a NUMBER (never a
-      // string-concatenated prefix). If row already has a valid outward batch
-      // (edit mode: FIXED, unchanged from what was loaded), keep it exactly.
       var outBatch = '';
       var existingOB = r.outwardBatchNo;
       var existingObStr = String(existingOB == null ? '' : existingOB);
       if (existingObStr && existingObStr.indexOf('__AUTO__') !== 0) {
-        var existingObNum = parseFloat(existingObStr);
-        outBatch = !isNaN(existingObNum) ? existingObNum : existingObStr;
+        outBatch = existingObStr;
       } else if (parseFloat(r.recQty) > 0) {
-        outBatch = outwardBase + obIdx; // pure Number
+        outBatch = obPrefix + String(outwardBase + obIdx);
         obIdx++;
       }
       // matRecImage: convert array of {url} to comma-separated plain URLs

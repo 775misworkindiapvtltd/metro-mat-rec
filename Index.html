@@ -1059,10 +1059,13 @@ function getAlreadyReceived(poNo,vendorName,itemName){
    CLIENT-SIDE LIVE PREVIEW; the server (saveMatRecEntriesAI) re-computes the final
    authoritative number at save-time to avoid race conditions with other users. */
 function getNextOutwardBatchNo(){
-  var base=parseFloat(S.obBase)||1;
-  var maxNum=base-1;
+  var prefix=(S.obPrefix||'').toLowerCase();
+  var maxNum=0;
   S.matRecResp.forEach(function(r){
-    var n=parseFloat(r.outwardBatchNo);
+    var val=String(r.outwardBatchNo||'');
+    var numPart=val;
+    if(prefix&&val.toLowerCase().indexOf(prefix)===0){numPart=val.substring(S.obPrefix.length);}
+    var n=parseInt(numPart,10);
     if(!isNaN(n)&&n>maxNum)maxNum=n;
   });
   return maxNum+1;
@@ -1133,7 +1136,7 @@ function computeNewUniqueNo(row,topFields){
   var monthMap={jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
   var dm=invDate.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/);
   if(dm){invDate=dm[1].padStart(2,'0')+'-'+monthMap[dm[2].toLowerCase()]+'-'+dm[3];}
-  var parts=[vend,T.invoiceNumber,invDate,T.invQty,row.invoiceRate,row.inwardBatchNo];
+  var parts=[vend,T.invoiceNumber,invDate,row.recQty,row.invoiceRate,row.inwardBatchNo];
   return parts.map(function(p){return String(p==null?'':p).trim();}).join('_');
 }
 
@@ -1825,9 +1828,9 @@ document.addEventListener('input',function(e){
         el.value=el.value.replace(/-/g,'');
       }
       S.matRecEntry.rows[i][f]=el.value;
-      // New Unique No is derived from Invoice Rate / Inward Batch No (part of the
+      // New Unique No is derived from Invoice Rate / Inward Batch No / REC QTY (part of the
       // formula) — recompute for THIS row live, in BOTH Add and Edit mode.
-      if(f==='invoiceRate'||f==='inwardBatchNo'){
+      if(f==='invoiceRate'||f==='inwardBatchNo'||f==='recQty'){
         recalcRowNewUniqueNo(i);
       }
       if(f==='recQty'||f==='cancelQty'){
@@ -1839,7 +1842,7 @@ document.addEventListener('input',function(e){
           var batchIdx=0;
           S.matRecEntry.rows.forEach(function(r,ri){
             if(parseFloat(r.recQty)>0){
-              r.outwardBatchNo=nextBatch+batchIdx; // pure number, no string prefix concatenation
+              r.outwardBatchNo=(S.obPrefix||'')+String(nextBatch+batchIdx);
               batchIdx++;
             } else {
               r.outwardBatchNo='';
