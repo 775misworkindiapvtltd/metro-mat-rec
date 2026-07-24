@@ -1191,7 +1191,9 @@ function renderMatRecAdd(){
       {k:'matRecImage',label:'Mat Rec Image',w:120,type:'upload'}
     ];
 
-    var hdr='<th class="blk-a" style="width:28px;min-width:28px;">#</th>'+tblCols.map(function(c){var w=S.entryWidths[c.k]||c.w;return '<th class="blk-a" style="width:'+w+'px;min-width:'+w+'px;max-width:'+w+'px;">'+esc(c.label)+'<div class="eresize" data-ecol="'+c.k+'"></div></th>';}).join('');
+    // Floor every column width at 60px — prevents a previously-saved narrow resize
+    // from collapsing an EDITABLE input to near-invisible (looked like "non-editable").
+    var hdr='<th class="blk-a" style="width:28px;min-width:28px;">#</th>'+tblCols.map(function(c){var w=Math.max(60,S.entryWidths[c.k]||c.w);return '<th class="blk-a" style="width:'+w+'px;min-width:'+w+'px;max-width:'+w+'px;">'+esc(c.label)+'<div class="eresize" data-ecol="'+c.k+'"></div></th>';}).join('');
 
     var tbod=E.rows.map(function(r,i){
       var rowHasQty=(parseFloat(r.recQty)>0||parseFloat(r.cancelQty)>0);
@@ -1960,7 +1962,7 @@ document.addEventListener('mousemove',function(e){
   if(th){th.style.width=nw+'px';th.style.minWidth=nw+'px';th.style.maxWidth=nw+'px';}
 });
 document.addEventListener('mouseup',function(e){
-  if(eResizeCtx){var nw=Math.max(30,Math.round(eResizeCtx.startW+(e.clientX-eResizeCtx.startX)));S.entryWidths[eResizeCtx.col]=nw;saveColWidthsToServer('matRecEntry',S.entryWidths);eResizeCtx=null;return;}
+  if(eResizeCtx){var nw=Math.max(60,Math.round(eResizeCtx.startW+(e.clientX-eResizeCtx.startX)));S.entryWidths[eResizeCtx.col]=nw;saveColWidthsToServer('matRecEntry',S.entryWidths);eResizeCtx=null;return;}
   if(!resizeCtx)return;
   var finalW=Math.max(60,Math.round(resizeCtx.startW+(e.clientX-resizeCtx.startX)));
   if(resizeCtx.isPo){S.dtPo.widths[resizeCtx.c]=finalW;saveColWidthsToServer('poRecView',S.dtPo.widths);}
