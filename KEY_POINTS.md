@@ -230,7 +230,11 @@
 - Outward Batch calculated server-side
 - Server filters ACTIVE-only data before sending to client
 - Image uploads start immediately (don't wait for submit)
-- Auto-refresh every 10 minutes (silent, no spinner)
+- **Auto-refresh every 5 minutes** (silent, no spinner) — updated from 10 min
+  - **Never disturbs active work:** `silentRefreshAI()` immediately returns (skips the whole refresh cycle — no fetch, no render) if the user is on the Add/Edit form (`S.page==='matRecAdd'`), currently saving (`S.saving`), or has pending image/file uploads (`S.pendingUploads>0`).
+  - Double-checked AFTER the server data comes back too (in case the user opened the Add/Edit form WHILE the background fetch was in flight) — if so, the freshly-fetched data is silently discarded instead of being applied/rendered.
+  - Refresh resumes normally on data-table pages (Material Received list / PO Received list) when the user is just browsing/idle there.
+  - Next auto-refresh cycle (5 min later) will simply try again — no data is lost, it just waits until the user is free.
 - Column widths persist to server (no re-adjustment needed)
 
 ---
