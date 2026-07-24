@@ -88,10 +88,13 @@
 | Invoice Rate | Manual | Editable |
 | Inward Batch No | Manual | Editable |
 | Gross Weight | Manual | Editable |
+| Inward Batch No | Manual | **Editable in BOTH Add and Edit mode** (prefilled from sheet in Edit mode, user can change) |
 | Remarks | Manual (TEXTAREA, resizable) | Editable |
 | New Unique No | PO data (uniqueNoAdd) | Readonly |
 | Outward Batch No | Auto (server-side, only when recQty>0) | Readonly |
 | Mat Rec Image | Upload (per row, non-mandatory) | Upload |
+
+- **FIXED — "Inward Batch No looked non-editable":** The column never actually had a `readonly`/`ro:true` flag in code (confirmed by inspection — only New Unique No and Outward Batch No are `ro:true`, by design). Root cause was that Item Rows column widths are user-resizable and persisted per-user on the server (`S.entryWidths`); if a column was previously dragged very narrow (or a stale/near-zero width got saved), the input box rendered almost invisible, which looked like "non-editable". Fix: column width is now floored at a minimum of 60px both when rendering (`Math.max(60, S.entryWidths[c.k]||c.w)`) and when saving a new resize (`Math.max(60, ...)` in the resize mouseup handler) — so no Item Rows column (Inward Batch No or otherwise) can ever collapse to an unusable/invisible width again.
 
 ### Calculations
 - **Pending QTY (row)** = PO QTY - REC QTY - Cancel QTY - Already Received
