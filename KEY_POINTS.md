@@ -89,7 +89,7 @@
 | Inward Batch No | Manual | **Editable in BOTH Add and Edit mode** (prefilled from sheet in Edit mode, user can change) |
 | Gross Weight | Manual | Editable |
 | Remarks | Manual (TEXTAREA, resizable) | Editable |
-| New Unique No | PO data (uniqueNoAdd) | Readonly |
+| New Unique No | **COMPUTED FORMULA** (see below) | Readonly (auto-derived, never typed) |
 | Outward Batch No | Auto (server-side, only when recQty>0) | Readonly |
 | Mat Rec Image | Upload (per row, non-mandatory) | Upload |
 
