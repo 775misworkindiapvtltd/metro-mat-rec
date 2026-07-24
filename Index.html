@@ -529,7 +529,7 @@ function uploadFileToDrive(file,callback){
 
 
 /* ============================= CLOCK + AUTO-REFRESH ============================= */
-var AUTO_REFRESH_MINUTES = 10;
+var AUTO_REFRESH_MINUTES = 5;
 
 function startClock(){
   setInterval(function(){
@@ -544,10 +544,22 @@ function startClock(){
   }, AUTO_REFRESH_MINUTES * 60 * 1000);
 }
 
+// Silent background refresh — pulls fresh data every AUTO_REFRESH_MINUTES.
+// IMPORTANT: Must NEVER disturb a user who is actively adding/editing a Material
+// Rec entry (typing, uploading files, mid-save) — re-rendering the Add/Edit form
+// would reset focus/cursor, close open dropdowns, and disrupt in-progress uploads.
+// So: if user is on the matRecAdd page, OR currently saving, OR has a pending
+// upload, we SKIP this refresh cycle entirely (no fetch, no render) and simply
+// retry on the next interval. Data-table pages (Material Received / PO Received)
+// refresh normally in the background without any visible disruption.
 async function silentRefreshAI(){
+  if(S.page==='matRecAdd'||S.saving||S.pendingUploads>0) return; // user is busy — don't touch anything
   try{
     var perms={matRecView:S.user.matRecView,matRecAdd:S.user.matRecAdd,matRecEdit:S.user.matRecEdit,poReceived:S.user.poReceived};
     var data=await runServer('getBootstrapDataAI',perms);
+    // Re-check right before applying — user may have opened the Add/Edit form
+    // WHILE this network call was in flight. If so, discard the result silently.
+    if(S.page==='matRecAdd'||S.saving||S.pendingUploads>0) return;
     if(data){ S.matRecResp=data.matRecResp||[]; S.poReceived=data.poReceived||[]; }
     render();
   }catch(e){}
