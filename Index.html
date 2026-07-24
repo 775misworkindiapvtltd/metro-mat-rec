@@ -1000,7 +1000,13 @@ function initMatRecDatePickers(){
     flatpickr(el,{
       dateFormat:'d-M-Y',allowInput:true,disableMobile:true,
       defaultDate:S.matRecEntry&&S.matRecEntry.topFields[key]?S.matRecEntry.topFields[key]:null,
-      onChange:function(sel,ds){if(S.matRecEntry)S.matRecEntry.topFields[key]=ds;}
+      onChange:function(sel,ds){
+        if(S.matRecEntry){
+          S.matRecEntry.topFields[key]=ds;
+          // Invoice Date is part of the New Unique No formula — recompute live.
+          if(key==='invoiceDate')recalcAllNewUniqueNos();
+        }
+      }
     });
   });
 }
@@ -1093,15 +1099,61 @@ function onPoSelected(poNo){
       inwardBatchNo:'',
       grossWeight:'',
       remarks:'',
-      newUniqueNo:String(r.uniqueNoAdd||'').trim(),
+      newUniqueNo:'', // computed below via computeNewUniqueNo (formula-based, not from PO sheet)
       outwardBatchNo:'',
       matRecImage:[],
       poQuantity:poQty,
       alreadyReceived:alreadyRec
     };
   });
+  E.rows.forEach(function(r){ r.newUniqueNo=computeNewUniqueNo(r,E.topFields); });
   recalcPendingTop();
   render();
+}
+
+/* Get vendor's SHORT NAME from PO data (matched by full vendor name).
+   If short name not found/blank, fall back to the LONG (full) vendor name. */
+function getVendorShortOrLongName(vendorName){
+  var vLow=String(vendorName||'').trim().toLowerCase();
+  if(!vLow)return '';
+  var match=S.poReceived.find(function(r){
+    var v=String(r.supplier||r.buyerName||'').trim().toLowerCase();
+    return v===vLow;
+  });
+  var shortN=match&&match.vendorShortName?String(match.vendorShortName).trim():'';
+  return shortN||String(vendorName||'').trim();
+}
+
+/* New Unique No formula:
+   VENDORNAME(short, fallback long)_INVOICE NO_INVOICE DATE_INVOICE QTY_INVOICE RATE_INWARD BATCH NO
+   Live-recomputed (in BOTH Add and Edit mode) whenever any of these underlying
+   fields change — it is a DERIVED/computed field, not independently typed. */
+function computeNewUniqueNo(row,topFields){
+  var T=topFields||{};
+  var vend=getVendorShortOrLongName(T.vendorName);
+  var parts=[vend,T.invoiceNumber,T.invoiceDate,T.invQty,row.invoiceRate,row.inwardBatchNo];
+  return parts.map(function(p){return String(p==null?'':p).trim();}).join('_');
+}
+
+/* Recompute New Unique No for ALL item rows and push into the visible inputs
+   directly (no full re-render) so focus/scroll isn't disturbed. */
+function recalcAllNewUniqueNos(){
+  var E=S.matRecEntry;if(!E)return;
+  E.rows.forEach(function(r,ri){
+    r.newUniqueNo=computeNewUniqueNo(r,E.topFields);
+    var el=document.querySelector('input[data-matfield="newUniqueNo"][data-mati="'+ri+'"]');
+    if(el){el.value=r.newUniqueNo;el.title=r.newUniqueNo;}
+  });
+}
+
+/* Recompute New Unique No for ONE item row (used when a row-level field like
+   Invoice Rate / Inward Batch No changes). */
+function recalcRowNewUniqueNo(rowIdx){
+  var E=S.matRecEntry;if(!E)return;
+  var r=E.rows[rowIdx];if(!r)return;
+  r.newUniqueNo=computeNewUniqueNo(r,E.topFields);
+  var el=document.querySelector('input[data-matfield="newUniqueNo"][data-mati="'+rowIdx+'"]');
+  if(el){el.value=r.newUniqueNo;el.title=r.newUniqueNo;}
 }
 
 /* Recalculate pending quantities */
@@ -1751,7 +1803,16 @@ document.addEventListener('input',function(e){
     if(el.type==='number'&&el.value.indexOf('-')>=0){
       el.value=el.value.replace(/-/g,'');
     }
-    if(S.matRecEntry){S.matRecEntry.topFields[el.getAttribute('data-mattop')]=el.value;}return;
+    var topKey=el.getAttribute('data-mattop');
+    if(S.matRecEntry){
+      S.matRecEntry.topFields[topKey]=el.value;
+      // New Unique No is derived from Invoice No / Invoice Qty (part of the formula)
+      // — recompute for ALL rows live, in BOTH Add and Edit mode.
+      if(topKey==='invoiceNumber'||topKey==='invQty'){
+        recalcAllNewUniqueNos();
+      }
+    }
+    return;
   }
   if(el.hasAttribute('data-matfield')){
     if(S.matRecEntry){
@@ -1762,6 +1823,11 @@ document.addEventListener('input',function(e){
         el.value=el.value.replace(/-/g,'');
       }
       S.matRecEntry.rows[i][f]=el.value;
+      // New Unique No is derived from Invoice Rate / Inward Batch No (part of the
+      // formula) — recompute for THIS row live, in BOTH Add and Edit mode.
+      if(f==='invoiceRate'||f==='inwardBatchNo'){
+        recalcRowNewUniqueNo(i);
+      }
       if(f==='recQty'||f==='cancelQty'){
         recalcPendingQty(i);
         // EDIT MODE: New Unique No & Outward Batch No stay FIXED (as loaded) — never re-assigned.

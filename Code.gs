@@ -198,6 +198,7 @@ function mapPoReceivedAI(rows) {
       phNo: fmtValueAI(pickAI(r, ['PH NO'])),
       supplierEmail: fmtValueAI(pickAI(r, ['EMAIL'])),
       uniqueNoAdd: fmtValueAI(pickAI(r, ['UNIQUE NO ADD'])),
+      vendorShortName: fmtValueAI(pickAI(r, ['VENDOR SHORT NAME', 'SHORT NAME', 'Short Name', 'SHORTNAME', 'VENDOR SHORT'])),
       description: fmtValueAI(pickAI(r, ['Description of Goods', 'DESCRIPTION OF GOODS'])),
       size: fmtValueAI(pickAI(r, ['SIZE'])),
       brand: fmtValueAI(pickAI(r, ['BRAND'])),
