@@ -425,10 +425,9 @@ function saveMatRecEntriesAI(payload) {
     } // end else (new entry)
 
     // Calculate outward batch numbers server-side.
-    // DROPDOWN sheet B1 = string prefix (e.g. "CW"). The NUMERIC part after the
-    // prefix is what increments. We find the max numeric suffix from existing col AD
-    // values (stripping the known prefix first) and increment from there.
-    var obPrefix = '';
+    // DROPDOWN sheet B1 = starting number for the series (e.g. 202610).
+    // Outward Batch No is a PURE INTEGER — no text prefix.
+    // Increments from whatever max already exists in col AD.
     var outwardBase = 1;
     try {
       var ddSh2 = ss.getSheetByName('DROPDOWN');
@@ -441,25 +440,19 @@ function saveMatRecEntriesAI(payload) {
         }
       }
       if (ddSh2) {
-        var b1Raw = String(ddSh2.getRange('B1').getValue() || '').trim();
-        if (b1Raw) obPrefix = b1Raw;
+        var b1Val = ddSh2.getRange('B1').getValue();
+        var b1Num = parseInt(String(b1Val == null ? '' : b1Val).replace(/[^0-9]/g, ''), 10);
+        if (!isNaN(b1Num) && b1Num > 0) outwardBase = b1Num;
       }
     } catch (e3) {}
-    // Find max existing numeric suffix in column AD (strip the prefix first)
+    // Find max existing integer in column AD and increment from there
     try {
       var lastRow2 = sh.getLastRow();
       if (lastRow2 > 1) {
         var obCol = 30; // AD = outward batch no
         var obData = sh.getRange(2, obCol, lastRow2 - 1, 1).getValues();
-        var prefixLower = obPrefix.toLowerCase();
         obData.forEach(function(row) {
-          var val = String(row[0] || '');
-          // Strip the known prefix to get the numeric part
-          var numPart = val;
-          if (prefixLower && val.toLowerCase().indexOf(prefixLower) === 0) {
-            numPart = val.substring(obPrefix.length);
-          }
-          var n2 = parseInt(numPart, 10);
+          var n2 = parseInt(String(row[0] || '').replace(/[^0-9]/g, ''), 10);
           if (!isNaN(n2) && n2 >= outwardBase) outwardBase = n2 + 1;
         });
       }
@@ -473,7 +466,7 @@ function saveMatRecEntriesAI(payload) {
       if (existingObStr && existingObStr.indexOf('__AUTO__') !== 0) {
         outBatch = existingObStr;
       } else if (parseFloat(r.recQty) > 0) {
-        outBatch = obPrefix + String(outwardBase + obIdx);
+        outBatch = outwardBase + obIdx;
         obIdx++;
       }
       // matRecImage: convert array of {url} to comma-separated plain URLs

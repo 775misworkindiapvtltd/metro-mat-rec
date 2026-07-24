@@ -1059,13 +1059,9 @@ function getAlreadyReceived(poNo,vendorName,itemName){
    CLIENT-SIDE LIVE PREVIEW; the server (saveMatRecEntriesAI) re-computes the final
    authoritative number at save-time to avoid race conditions with other users. */
 function getNextOutwardBatchNo(){
-  var prefix=(S.obPrefix||'').toLowerCase();
   var maxNum=0;
   S.matRecResp.forEach(function(r){
-    var val=String(r.outwardBatchNo||'');
-    var numPart=val;
-    if(prefix&&val.toLowerCase().indexOf(prefix)===0){numPart=val.substring(S.obPrefix.length);}
-    var n=parseInt(numPart,10);
+    var n=parseInt(String(r.outwardBatchNo||'').replace(/[^0-9]/g,''),10);
     if(!isNaN(n)&&n>maxNum)maxNum=n;
   });
   return maxNum+1;
@@ -1842,7 +1838,7 @@ document.addEventListener('input',function(e){
           var batchIdx=0;
           S.matRecEntry.rows.forEach(function(r,ri){
             if(parseFloat(r.recQty)>0){
-              r.outwardBatchNo=(S.obPrefix||'')+String(nextBatch+batchIdx);
+              r.outwardBatchNo=nextBatch+batchIdx;
               batchIdx++;
             } else {
               r.outwardBatchNo='';
