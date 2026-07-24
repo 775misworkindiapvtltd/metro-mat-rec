@@ -93,6 +93,11 @@
 | Outward Batch No | Auto (server-side, only when recQty>0) | Readonly |
 | Mat Rec Image | Upload (per row, non-mandatory) | Upload |
 
+- **NEW UNIQUE NO FORMULA (changed):** `VENDOR_INVOICENO_INVOICEDATE_INVOICEQTY_INVOICERATE_INWARDBATCHNO` (underscore-joined).
+  - **Vendor part:** uses the vendor's SHORT NAME (looked up from PO RECIEVED sheet column `VENDOR SHORT NAME` matched by full vendor name) — if no short name is found/blank, falls back to the full/long vendor name.
+  - Previously ended with **Outward Batch No** — changed to **Inward Batch No** per explicit correction (Outward Batch No was wrong).
+  - **Live-recomputed** (not a static prefill) — updates instantly, in BOTH Add mode AND Edit mode, whenever ANY of the underlying fields changes: Vendor Name, Invoice No, Invoice Date, Invoice Qty (top-level), or Invoice Rate / Inward Batch No (per row). Implemented via `computeNewUniqueNo(row, topFields)` + `recalcAllNewUniqueNos()` / `recalcRowNewUniqueNo(i)`.
+  - Field itself stays readonly (user never types into it directly) — it purely reflects the current values of its component fields at all times, so editing any component field in an existing (Edit mode) entry correctly updates New Unique No too, instead of it staying frozen from the old save.
 - **FIXED — "Inward Batch No looked non-editable":** The column never actually had a `readonly`/`ro:true` flag in code (confirmed by inspection — only New Unique No and Outward Batch No are `ro:true`, by design). Root cause was that Item Rows column widths are user-resizable and persisted per-user on the server (`S.entryWidths`); if a column was previously dragged very narrow (or a stale/near-zero width got saved), the input box rendered almost invisible, which looked like "non-editable". Fix: column width is now floored at a minimum of 60px both when rendering (`Math.max(60, S.entryWidths[c.k]||c.w)`) and when saving a new resize (`Math.max(60, ...)` in the resize mouseup handler) — so no Item Rows column (Inward Batch No or otherwise) can ever collapse to an unusable/invisible width again.
 
 ### Calculations
