@@ -86,9 +86,8 @@
 | Size | PO data | Readonly |
 | Unit | PO data | Readonly |
 | Invoice Rate | Manual | Editable |
-| Inward Batch No | Manual | Editable |
-| Gross Weight | Manual | Editable |
 | Inward Batch No | Manual | **Editable in BOTH Add and Edit mode** (prefilled from sheet in Edit mode, user can change) |
+| Gross Weight | Manual | Editable |
 | Remarks | Manual (TEXTAREA, resizable) | Editable |
 | New Unique No | PO data (uniqueNoAdd) | Readonly |
 | Outward Batch No | Auto (server-side, only when recQty>0) | Readonly |
