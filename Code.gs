@@ -198,7 +198,6 @@ function mapPoReceivedAI(rows) {
       phNo: fmtValueAI(pickAI(r, ['PH NO'])),
       supplierEmail: fmtValueAI(pickAI(r, ['EMAIL'])),
       uniqueNoAdd: fmtValueAI(pickAI(r, ['UNIQUE NO ADD'])),
-      vendorShortName: fmtValueAI(pickAI(r, ['VENDOR SHORT NAME', 'SHORT NAME', 'Short Name', 'SHORTNAME', 'VENDOR SHORT'])),
       description: fmtValueAI(pickAI(r, ['Description of Goods', 'DESCRIPTION OF GOODS'])),
       size: fmtValueAI(pickAI(r, ['SIZE'])),
       brand: fmtValueAI(pickAI(r, ['BRAND'])),
@@ -540,6 +539,19 @@ function getDropdownDataAI() {
       result.obPrefix = String(b1Raw == null ? '' : b1Raw).trim(); // kept for backward compat / display
       var b1Num = parseFloat(String(b1Raw == null ? '' : b1Raw).replace(/[^0-9.]/g, ''));
       result.obBase = (!isNaN(b1Num) && b1Num > 0) ? b1Num : 1;
+
+      // Vendor short names: DROPDOWN sheet column D = full vendor name, column E = short code
+      // (e.g. D:"Kailaji Welding Industries" -> E:"KWI"). Read D2:E to end.
+      var lastRowDD = sh.getLastRow();
+      result.vendorShortNames = {};
+      if (lastRowDD > 1) {
+        var deData = sh.getRange(2, 4, lastRowDD - 1, 2).getValues(); // D2:E<last>
+        deData.forEach(function(row) {
+          var fullName = String(row[0] || '').trim();
+          var shortName = String(row[1] || '').trim();
+          if (fullName) result.vendorShortNames[fullName.toLowerCase()] = shortName;
+        });
+      }
     }
   } catch(e) { result.brands = []; }
   return result;

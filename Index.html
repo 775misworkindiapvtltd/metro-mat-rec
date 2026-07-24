@@ -410,7 +410,7 @@ var S = {
   matRecResp:[],
   poReceived:[],
   dropdownBrands:[],
-  obPrefix:'', obBase:1,
+  obPrefix:'', obBase:1, vendorShortNames:{},
   toast:null, loginError:'',
   dt:dtState(),
   dtPo:dtState(),
@@ -601,7 +601,7 @@ async function doLogin(id,pw){
     var perms={matRecView:S.user.matRecView,matRecAdd:S.user.matRecAdd,matRecEdit:S.user.matRecEdit,poReceived:S.user.poReceived};
     var data=await runServer('getBootstrapDataAI',perms);
     if(data){ S.matRecResp=data.matRecResp||[]; S.poReceived=data.poReceived||[]; }
-    try{ var dd=await runServer('getDropdownDataAI'); if(dd&&dd.brands) S.dropdownBrands=dd.brands; if(dd&&dd.obPrefix) S.obPrefix=dd.obPrefix; if(dd&&dd.obBase) S.obBase=dd.obBase; }catch(e){}
+    try{ var dd=await runServer('getDropdownDataAI'); if(dd&&dd.brands) S.dropdownBrands=dd.brands; if(dd&&dd.obPrefix) S.obPrefix=dd.obPrefix; if(dd&&dd.obBase) S.obBase=dd.obBase; if(dd&&dd.vendorShortNames) S.vendorShortNames=dd.vendorShortNames; }catch(e){}
     await loadColWidthsFromServer();
     S.syncing=false;
     console.log('[LOGIN] Data loaded: matRecResp='+S.matRecResp.length+', poReceived='+S.poReceived.length+', brands='+S.dropdownBrands.length);
@@ -1111,16 +1111,13 @@ function onPoSelected(poNo){
   render();
 }
 
-/* Get vendor's SHORT NAME from PO data (matched by full vendor name).
+/* Get vendor's SHORT NAME from DROPDOWN sheet (column D = full vendor name,
+   column E = short code, e.g. D:"Kailaji Welding Industries" -> E:"KWI").
    If short name not found/blank, fall back to the LONG (full) vendor name. */
 function getVendorShortOrLongName(vendorName){
   var vLow=String(vendorName||'').trim().toLowerCase();
   if(!vLow)return '';
-  var match=S.poReceived.find(function(r){
-    var v=String(r.supplier||r.buyerName||'').trim().toLowerCase();
-    return v===vLow;
-  });
-  var shortN=match&&match.vendorShortName?String(match.vendorShortName).trim():'';
+  var shortN=(S.vendorShortNames&&S.vendorShortNames[vLow])?String(S.vendorShortNames[vLow]).trim():'';
   return shortN||String(vendorName||'').trim();
 }
 
